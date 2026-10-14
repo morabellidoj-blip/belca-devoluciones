@@ -11,7 +11,7 @@ Tiempo estimado: 30–40 minutos. Siga los pasos en orden.
 ## PARTE 2 · Base de datos (Supabase)
 1. **New project** → nombre `belca-devoluciones` → invente una contraseña de base (guárdela) → región más cercana (ej. East US) → Create. Espere 2 minutos.
 2. Menú izquierdo **SQL Editor** → **New query**.
-3. Abra el archivo `supabase/migrations/001_schema.sql` de este zip con el Bloc de notas, copie TODO, péguelo en Supabase y pulse **Run**. Debe decir "Success".
+3. Abra el archivo `supabase/migrations/001_schema.sql` de este zip con el Bloc de notas, copie TODO, péguelo en Supabase y pulse **Run**. Debe decir "Success". Luego haga lo mismo con `supabase/migrations/002_unificar_llamadas.sql` (esta carga también los 23 motivos de devolución con su código).
 4. Menú **Authentication → Users → Add user → Create new user**: ponga su correo y una contraseña, y marque **Auto Confirm User**.
 5. Vuelva a **SQL Editor** → New query, ejecute (cambie el correo por el suyo):
    `update profiles set rol='admin' where id=(select id from auth.users where email='SU_CORREO');`
@@ -37,17 +37,17 @@ Tiempo estimado: 30–40 minutos. Siga los pasos en orden.
 4. Ábrala e ingrese con el correo y contraseña de la Parte 2, paso 4.
 
 ## PARTE 5 · Primer uso
-1. Menú **Administración → Importar catálogos**: pegue sus **rutas** y **vendedores** (uno por línea) y luego sus **clientes** (`código;nombre;teléfono;ruta;vendedor`, puede pegar directo desde Excel).
+1. Menú **Administración → Importar catálogos**: pegue sus **rutas** y **vendedores** (una columna de Excel) y luego sus **clientes** (5 columnas de Excel, sin encabezados: código, nombre, teléfono, ruta, vendedor).
 2. **Administración → Usuarios**: cree a los gestores de devoluciones (rol "Gestor").
 3. Ajuste los **umbrales de alertas** si lo desea (48 h, 15 días, máx. de canastas, % mínimo de recuperación).
-4. Registre su primer caso en **Casos → Nuevo caso**.
+4. Cada llamada de devolución se registra en **Casos → Nuevo caso** (hora automática, duración opcional).
 
 Cada vez que cambie archivos en GitHub, Vercel republica solo.
 
 ## Qué incluye
 - **Dashboard** con 10 KPIs, 7 gráficos y filtros (fecha, hoy/semana/mes, cliente, estado, gestor).
 - **Casos**: alta con fotos y firma, edición, cierre, bitácora de seguimientos, recuperación económica y evidencias por caso.
-- **Llamadas**: alta, edición, historial y gráficos por día y por hora.
+- **Llamadas**: tablero (por día, por hora, promedio y tiempo de atención) calculado con los mismos casos. La llamada se registra una sola vez, en **Nuevo caso**.
 - **Canastas**: registro con evidencia, estados automáticos, KPIs y 8 gráficos.
 - **Recuperación económica**, **Desempeño operativo** (por gestor), **Reportes** (Excel, PDF, CSV) y **Alertas**.
 - **Administración**: usuarios y roles, catálogos, importación masiva y umbrales.

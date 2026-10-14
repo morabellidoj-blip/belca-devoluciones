@@ -1,7 +1,8 @@
 import { redirect } from 'next/navigation'
+import { motLabel } from '@/lib/ui'
 import { revalidatePath } from 'next/cache'
 import { ctx, g, num, subir, urls } from '@/lib/data'
-import { T, Box, Grid, I, S, A, F, B, Tbl, Badge, ESTADOS, TIPOS_REC, fmt } from '@/lib/ui'
+import { T, Box, Grid, I, S, A, F, B, Tbl, Badge, ESTADOS, TIPOS_REC, fmt, horaCR } from '@/lib/ui'
 export const dynamic = 'force-dynamic'
 async function actualizar(fd: FormData) {
   'use server'
@@ -27,7 +28,7 @@ async function archivo(fd: FormData) { 'use server'; const { sb } = await ctx();
 async function borrar(fd: FormData) { 'use server'; const { sb, admin } = await ctx(); if (!admin) return; await sb.from('casos').delete().eq('id', g(fd, 'id')); redirect('/casos') }
 export default async function Caso({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params; const { sb, admin } = await ctx()
-  const { data: c } = await sb.from('casos').select('*,clientes(codigo,nombre),vendedores(nombre),rutas(nombre),motivos_devolucion(nombre),profiles(nombre)').eq('id', id).single()
+  const { data: c } = await sb.from('casos').select('*,clientes(codigo,nombre),vendedores(nombre),rutas(nombre),motivos_devolucion(codigo,nombre),profiles(nombre)').eq('id', id).single()
   if (!c) return <p>Caso no encontrado.</p>
   const [{ data: seg }, { data: rec }, { data: arch }] = await Promise.all([
     sb.from('seguimientos').select('*,profiles(nombre)').eq('caso_id', id).order('created_at', { ascending: false }),
@@ -39,8 +40,8 @@ export default async function Caso({ params }: { params: Promise<{ id: string }>
     <Box><div className="grid grid-cols-2 md:grid-cols-4 gap-4">
       {dato('Fecha', c.fecha)}{dato('Cliente', `${c.clientes?.codigo} · ${c.clientes?.nombre}`)}{dato('Vendedor', c.vendedores?.nombre)}{dato('Ruta', c.rutas?.nombre)}
       {dato('Chofer', c.chofer)}{dato('Ayudante', c.ayudante)}{dato('Factura', c.factura)}{dato('Pedido', c.pedido)}
-      {dato('Producto', c.producto)}{dato('Cantidad', c.cantidad)}{dato('Monto', fmt(c.monto))}{dato('Motivo', c.motivos_devolucion?.nombre)}
-      {dato('Gestor', c.profiles?.nombre)}{dato('Fecha límite', c.fecha_vencimiento)}{dato('Cierre', c.fecha_cierre?.slice(0, 16).replace('T', ' '))}</div></Box>
+      {dato('Producto', c.producto)}{dato('Cantidad', c.cantidad)}{dato('Monto', fmt(c.monto))}{dato('Motivo', motLabel(c?.motivos_devolucion))}
+      {dato('Registrado', c.created_at?.slice(0, 10) + ' ' + horaCR(c.created_at))}{dato('Duración llamada (min)', c.duracion_min)}{dato('Gestor', c.profiles?.nombre)}{dato('Fecha límite', c.fecha_vencimiento)}{dato('Cierre', c.fecha_cierre?.slice(0, 16).replace('T', ' '))}</div></Box>
     <Grid>
       <Box title="Actualizar caso"><form action={actualizar} className="grid gap-3"><input type="hidden" name="id" value={id} />
         <S n="estado" l="Estado" def={c.estado} o={Object.entries(ESTADOS)} /><I n="fecha_vencimiento" l="Fecha límite" type="date" def={c.fecha_vencimiento} />

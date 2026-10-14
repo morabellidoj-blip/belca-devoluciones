@@ -10,8 +10,8 @@ export async function cat(sb: any) {
     sb.from('clientes').select('id,codigo,nombre').eq('activo', true).order('nombre').limit(5000),
     sb.from('vendedores').select('id,nombre').eq('activo', true).order('nombre'),
     sb.from('rutas').select('id,nombre').eq('activo', true).order('nombre'),
-    sb.from('motivos_devolucion').select('id,nombre').eq('activo', true).order('nombre')])
-  return { clientes: c.data || [], vendedores: v.data || [], rutas: r.data || [], motivos: m.data || [] }
+    sb.from('motivos_devolucion').select('id,codigo,nombre').eq('activo', true)])
+  return { clientes: c.data || [], vendedores: v.data || [], rutas: r.data || [], motivos: (m.data || []).sort((a: any, b: any) => (Number(a.codigo) || 9999) - (Number(b.codigo) || 9999)) }
 }
 export const g = (fd: FormData, k: string) => ((fd.get(k) as string) || null)
 export const num = (fd: FormData, k: string) => Number(fd.get(k) || 0)

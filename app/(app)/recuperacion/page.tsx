@@ -1,4 +1,5 @@
 import { revalidatePath } from 'next/cache'
+import { motLabel } from '@/lib/ui'
 import { ctx, g, num, rangoTs } from '@/lib/data'
 import { Chart } from '@/lib/chart'
 import { T, Kpi, Kpis, Grid, Box, I, S, B, Tbl, Filtros, grp, top, pct, fmt, TIPOS_REC } from '@/lib/ui'
@@ -13,7 +14,7 @@ async function borrar(fd: FormData) { 'use server'; const { sb, admin } = await 
 export default async function Recuperacion({ searchParams }: { searchParams: Promise<any> }) {
   const sp = await searchParams; const { sb, admin } = await ctx()
   const [{ data }, { data: casos }] = await Promise.all([
-    rangoTs(sb.from('recuperaciones').select('*,clientes(nombre),casos(numero,rutas(nombre),motivos_devolucion(nombre))').order('created_at', { ascending: false }).limit(3000), 'created_at', sp),
+    rangoTs(sb.from('recuperaciones').select('*,clientes(nombre),casos(numero,rutas(nombre),motivos_devolucion(codigo,nombre))').order('created_at', { ascending: false }).limit(3000), 'created_at', sp),
     sb.from('casos').select('id,numero,clientes(nombre)').order('created_at', { ascending: false }).limit(500)])
   const R: any[] = data || []
   const rec = R.reduce((a, r) => a + Number(r.monto_recuperado), 0), perd = R.reduce((a, r) => a + Number(r.monto_perdida), 0)
@@ -23,7 +24,7 @@ export default async function Recuperacion({ searchParams }: { searchParams: Pro
     <Kpis><Kpi t="Recuperación total" v={fmt(rec)} /><Kpi t="Pérdida total" v={fmt(perd)} /><Kpi t="% Recuperación" v={`${pct(rec, perd)}%`} /><Kpi t="Neto no recuperado" v={fmt(perd - rec)} /></Kpis>
     <Grid><Box title="Recuperación por cliente"><Chart horizontal data={gr(r => r.clientes?.nombre)} /></Box>
       <Box title="Recuperación por ruta"><Chart horizontal data={gr(r => r.casos?.rutas?.nombre)} /></Box>
-      <Box title="Recuperación por motivo"><Chart horizontal data={gr(r => r.casos?.motivos_devolucion?.nombre)} /></Box>
+      <Box title="Recuperación por motivo"><Chart horizontal data={gr(r => motLabel(r.casos?.motivos_devolucion))} /></Box>
       <Box title="Recuperación por tipo"><Chart data={gr(r => TIPOS_REC[r.tipo])} /></Box></Grid>
     <Box title="Registrar recuperación"><form action={crear} className="grid sm:grid-cols-5 gap-3 items-end">
       <S n="caso_id" l="Caso relacionado" req o={(casos || []).map((c: any) => [c.id, `${c.numero} · ${c.clientes?.nombre}`])} /><I n="monto_perdida" l="Monto pérdida" type="number" req />
