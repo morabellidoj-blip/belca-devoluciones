@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic'
 async function actualizar(fd: FormData) {
   'use server'
   const { sb } = await ctx(); const id = g(fd, 'id')!; const estado = g(fd, 'estado')!
-  const upd: any = { estado, observaciones: g(fd, 'observaciones'), fecha_vencimiento: g(fd, 'fecha_vencimiento'), critico: fd.get('critico') === 'on', ultima_gestion: new Date().toISOString() }
+  const upd: any = { estado, observaciones: g(fd, 'observaciones'), critico: fd.get('critico') === 'on', ultima_gestion: new Date().toISOString() }
   if (estado !== 'cerrado') upd.fecha_cierre = null
   await sb.from('casos').update(upd).eq('id', id); revalidatePath(`/casos/${id}`)
 }
@@ -20,8 +20,8 @@ async function seguimiento(fd: FormData) {
 async function recuperacion(fd: FormData) {
   'use server'
   const { sb } = await ctx(); const id = g(fd, 'id')!
-  const { data: c } = await sb.from('casos').select('cliente_id').eq('id', id).single()
-  await sb.from('recuperaciones').insert({ caso_id: id, cliente_id: c?.cliente_id, monto_perdida: num(fd, 'monto_perdida'), monto_recuperado: num(fd, 'monto_recuperado'), tipo: g(fd, 'tipo') })
+  const { data: c } = await sb.from('casos').select('cliente_id,monto').eq('id', id).single()
+  await sb.from('recuperaciones').insert({ caso_id: id, cliente_id: c?.cliente_id, monto_perdida: g(fd, 'monto_perdida') ? num(fd, 'monto_perdida') : Number(c?.monto || 0), monto_recuperado: num(fd, 'monto_recuperado'), tipo: g(fd, 'tipo') })
   revalidatePath(`/casos/${id}`)
 }
 async function archivo(fd: FormData) { 'use server'; const { sb } = await ctx(); const id = g(fd, 'id')!; await subir(sb, fd, 'archivo', { caso_id: id }, g(fd, 'tipo') || 'foto'); revalidatePath(`/casos/${id}`) }
@@ -39,12 +39,12 @@ export default async function Caso({ params }: { params: Promise<{ id: string }>
     <div className="flex items-center gap-3 mb-5"><T>{c.numero}</T><Badge>{ESTADOS[c.estado]}</Badge>{c.critico && <span className="text-red-600 text-xs font-bold">CRÍTICO</span>}</div>
     <Box><div className="grid grid-cols-2 md:grid-cols-4 gap-4">
       {dato('Fecha', c.fecha)}{dato('Cliente', `${c.clientes?.codigo} · ${c.clientes?.nombre}`)}{dato('Vendedor', c.vendedores?.nombre)}{dato('Ruta', c.rutas?.nombre)}
-      {dato('Chofer', c.chofer)}{dato('Ayudante', c.ayudante)}{dato('Factura', c.factura)}{dato('Pedido', c.pedido)}
+      {dato('Chofer', c.chofer)}{dato('Factura', c.factura)}
       {dato('Producto', c.producto)}{dato('Cantidad', c.cantidad)}{dato('Monto', fmt(c.monto))}{dato('Motivo', motLabel(c?.motivos_devolucion))}
-      {dato('Registrado', c.created_at?.slice(0, 10) + ' ' + horaCR(c.created_at))}{dato('Duración llamada (min)', c.duracion_min)}{dato('Gestor', c.profiles?.nombre)}{dato('Fecha límite', c.fecha_vencimiento)}{dato('Cierre', c.fecha_cierre?.slice(0, 16).replace('T', ' '))}</div></Box>
+      {dato('Registrado', c.created_at?.slice(0, 10) + ' ' + horaCR(c.created_at))}{dato('Gestor', c.profiles?.nombre)}{dato('Cierre', c.fecha_cierre?.slice(0, 16).replace('T', ' '))}</div></Box>
     <Grid>
       <Box title="Actualizar caso"><form action={actualizar} className="grid gap-3"><input type="hidden" name="id" value={id} />
-        <S n="estado" l="Estado" def={c.estado} o={Object.entries(ESTADOS)} /><I n="fecha_vencimiento" l="Fecha límite" type="date" def={c.fecha_vencimiento} />
+        <S n="estado" l="Estado" def={c.estado} o={Object.entries(ESTADOS)} />
         <A n="observaciones" l="Observaciones" def={c.observaciones} />
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="critico" defaultChecked={c.critico} /> Incidencia crítica</label><B>Guardar cambios</B></form></Box>
       <Box title="Nuevo seguimiento"><form action={seguimiento} className="grid gap-3"><input type="hidden" name="id" value={id} />
@@ -55,7 +55,7 @@ export default async function Caso({ params }: { params: Promise<{ id: string }>
     <Grid>
       <Box title="Recuperación económica"><Tbl cols={['Tipo', 'Pérdida', 'Recuperado']} rows={(rec || []).map((r: any) => [TIPOS_REC[r.tipo], fmt(r.monto_perdida), fmt(r.monto_recuperado)])} />
         <form action={recuperacion} className="grid sm:grid-cols-4 gap-2 items-end mt-3"><input type="hidden" name="id" value={id} />
-          <I n="monto_perdida" l="Pérdida" type="number" req /><I n="monto_recuperado" l="Recuperado" type="number" req /><S n="tipo" l="Tipo" req o={Object.entries(TIPOS_REC)} /><B>Agregar</B></form></Box>
+          <I n="monto_perdida" l="Pérdida (vacío = monto del caso)" type="number" /><I n="monto_recuperado" l="Recuperado" type="number" req /><S n="tipo" l="Tipo" req o={Object.entries(TIPOS_REC)} /><B>Agregar</B></form></Box>
       <Box title="Evidencias">
         <div className="flex flex-wrap gap-3 mb-3">{files.map((f: any) => f.tipo === 'documento' ? <a key={f.id} href={f.url} target="_blank" className="underline text-sm">{f.nombre}</a> :
           <a key={f.id} href={f.url} target="_blank"><img src={f.url} alt={f.nombre} className="h-24 rounded border" /><span className="text-[10px] text-slate-500">{f.tipo}</span></a>)}</div>

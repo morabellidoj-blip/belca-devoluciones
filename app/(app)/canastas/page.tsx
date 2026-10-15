@@ -8,7 +8,7 @@ async function crear(fd: FormData) {
   'use server'
   const { sb } = await ctx(); const ent = num(fd, 'entregada'), rec = Math.min(num(fd, 'recuperada'), ent)
   const { data, error } = await sb.from('canastas').insert({ fecha: g(fd, 'fecha') || hoy(), cliente_id: g(fd, 'cliente_id'), ruta_id: g(fd, 'ruta_id'), vendedor_id: g(fd, 'vendedor_id'),
-    chofer: g(fd, 'chofer'), ayudante: g(fd, 'ayudante'), tipo_canasta: g(fd, 'tipo_canasta'), entregada: ent, recuperada: rec, estado: estadoAuto(g(fd, 'estado') || 'pendiente', ent, rec), observaciones: g(fd, 'observaciones') }).select('id').single()
+    chofer: g(fd, 'chofer'), tipo_canasta: g(fd, 'tipo_canasta'), entregada: ent, recuperada: rec, estado: estadoAuto(g(fd, 'estado') || 'pendiente', ent, rec), observaciones: g(fd, 'observaciones') }).select('id').single()
   if (error) throw new Error(error.message)
   await subir(sb, fd, 'fotos', { canasta_id: data.id }); revalidatePath('/canastas')
 }
@@ -40,7 +40,7 @@ export default async function Canastas({ searchParams }: { searchParams: Promise
       <Box title="Pendientes por vendedor"><Chart data={top(grp(abiertas, r => r.vendedores?.nombre, r => r.pendiente))} /></Box></Grid>
     <Box title="Registrar canastas"><form action={crear} className="grid sm:grid-cols-3 gap-3">
       <I n="fecha" l="Fecha" type="date" def={hoy()} /><S n="cliente_id" l="Cliente" req o={opts(c.clientes, x => `${x.codigo} · ${x.nombre}`)} /><S n="ruta_id" l="Ruta" o={opts(c.rutas, x => x.nombre)} />
-      <S n="vendedor_id" l="Vendedor" o={opts(c.vendedores, x => x.nombre)} /><I n="chofer" l="Chofer" /><I n="ayudante" l="Ayudante" />
+      <S n="vendedor_id" l="Vendedor" o={opts(c.vendedores, x => x.nombre)} /><I n="chofer" l="Chofer" />
       <I n="tipo_canasta" l="Tipo de canasta" req /><I n="entregada" l="Cantidad entregada" type="number" req /><I n="recuperada" l="Cantidad recuperada" type="number" def={0} />
       <S n="estado" l="Estado" def="pendiente" o={ESTADOS_CANASTA.map(e => [e, e])} /><A n="observaciones" l="Observaciones" cls="sm:col-span-2" /><F n="fotos" l="Evidencia fotográfica" />
       <div className="sm:col-span-3"><B>Guardar</B></div></form></Box>

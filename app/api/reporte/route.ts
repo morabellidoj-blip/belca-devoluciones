@@ -27,7 +27,7 @@ export async function GET(req: Request) {
   else if (tipo === 'canastas') rows = ((await rg(sb.from('canastas').select('*,clientes(nombre),rutas(nombre),vendedores(nombre)').limit(10000), 'fecha', d, h)).data || [])
     .map((r: any) => ({ Fecha: r.fecha, Cliente: r.clientes?.nombre, Ruta: r.rutas?.nombre, Vendedor: r.vendedores?.nombre, Chofer: r.chofer, Tipo: r.tipo_canasta, Entregada: r.entregada, Recuperada: r.recuperada, Pendiente: r.pendiente, Estado: r.estado }))
   else if (tipo === 'llamadas') rows = ((await rg(sb.from('casos').select('numero,fecha,created_at,estado,chofer,duracion_min,clientes(nombre),vendedores(nombre),motivos_devolucion(codigo,nombre)').order('fecha', { ascending: false }).limit(10000), 'fecha', d, h)).data || [])
-    .map((r: any) => ({ Caso: r.numero, Fecha: r.fecha, Hora: horaCR(r.created_at), Cliente: r.clientes?.nombre, Motivo: motLabel(r?.motivos_devolucion), Chofer: r.chofer, Vendedor: r.vendedores?.nombre, Estado: ESTADOS[r.estado], Minutos: r.duracion_min }))
+    .map((r: any) => ({ Caso: r.numero, Fecha: r.fecha, Hora: horaCR(r.created_at), Cliente: r.clientes?.nombre, Motivo: motLabel(r?.motivos_devolucion), Chofer: r.chofer, Vendedor: r.vendedores?.nombre, Estado: ESTADOS[r.estado] }))
   const name = `reporte_${tipo}_${new Date().toISOString().slice(0, 10)}`
   const cols = rows.length ? Object.keys(rows[0]) : ['Sin datos']
   if (fmt === 'csv') {

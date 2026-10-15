@@ -37,3 +37,7 @@ insert into motivos_devolucion(codigo,nombre) values
 ('20','NOTAS DESARROLLOS HOTELEROS')
 on conflict (codigo) do update set nombre=excluded.nombre, activo=true;
 insert into motivos_devolucion(codigo,nombre) select null,'NO DEFINIDO' where not exists(select 1 from motivos_devolucion where nombre='NO DEFINIDO');
+
+-- Evita nombres de vendedores repetidos (necesario para importar catálogos)
+delete from vendedores a using vendedores b where a.nombre = b.nombre and a.id > b.id;
+create unique index if not exists vendedores_nombre_uq on vendedores(nombre);

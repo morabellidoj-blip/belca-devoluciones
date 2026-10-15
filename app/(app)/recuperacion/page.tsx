@@ -6,8 +6,8 @@ import { T, Kpi, Kpis, Grid, Box, I, S, B, Tbl, Filtros, grp, top, pct, fmt, TIP
 export const dynamic = 'force-dynamic'
 async function crear(fd: FormData) {
   'use server'
-  const { sb } = await ctx(); const { data: c } = await sb.from('casos').select('cliente_id').eq('id', g(fd, 'caso_id')).single()
-  await sb.from('recuperaciones').insert({ caso_id: g(fd, 'caso_id'), cliente_id: c?.cliente_id, monto_perdida: num(fd, 'monto_perdida'), monto_recuperado: num(fd, 'monto_recuperado'), tipo: g(fd, 'tipo') })
+  const { sb } = await ctx(); const { data: c } = await sb.from('casos').select('cliente_id,monto').eq('id', g(fd, 'caso_id')).single()
+  await sb.from('recuperaciones').insert({ caso_id: g(fd, 'caso_id'), cliente_id: c?.cliente_id, monto_perdida: g(fd, 'monto_perdida') ? num(fd, 'monto_perdida') : Number(c?.monto || 0), monto_recuperado: num(fd, 'monto_recuperado'), tipo: g(fd, 'tipo') })
   revalidatePath('/recuperacion')
 }
 async function borrar(fd: FormData) { 'use server'; const { sb, admin } = await ctx(); if (admin) await sb.from('recuperaciones').delete().eq('id', g(fd, 'id')); revalidatePath('/recuperacion') }
@@ -27,7 +27,7 @@ export default async function Recuperacion({ searchParams }: { searchParams: Pro
       <Box title="Recuperación por motivo"><Chart horizontal data={gr(r => motLabel(r.casos?.motivos_devolucion))} /></Box>
       <Box title="Recuperación por tipo"><Chart data={gr(r => TIPOS_REC[r.tipo])} /></Box></Grid>
     <Box title="Registrar recuperación"><form action={crear} className="grid sm:grid-cols-5 gap-3 items-end">
-      <S n="caso_id" l="Caso relacionado" req o={(casos || []).map((c: any) => [c.id, `${c.numero} · ${c.clientes?.nombre}`])} /><I n="monto_perdida" l="Monto pérdida" type="number" req />
+      <S n="caso_id" l="Caso relacionado" req o={(casos || []).map((c: any) => [c.id, `${c.numero} · ${c.clientes?.nombre}`])} /><I n="monto_perdida" l="Monto pérdida (vacío = monto del caso)" type="number" />
       <I n="monto_recuperado" l="Monto recuperado" type="number" req /><S n="tipo" l="Tipo" req o={Object.entries(TIPOS_REC)} /><B>Guardar</B></form></Box>
     <Box title="Historial"><Tbl cols={['Fecha', 'Caso', 'Cliente', 'Tipo', 'Pérdida', 'Recuperado', '']} rows={R.slice(0, 300).map(r => [r.created_at.slice(0, 10), r.casos?.numero, r.clientes?.nombre, TIPOS_REC[r.tipo], fmt(r.monto_perdida), fmt(r.monto_recuperado),
       admin ? <form key="d" action={borrar}><input type="hidden" name="id" value={r.id} /><button className="text-red-600 text-xs underline">Eliminar</button></form> : ''])} /></Box></div>

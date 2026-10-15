@@ -22,7 +22,17 @@ export const semana = (d: string) => { const t = new Date(d + 'T00:00:00Z'); t.s
 export const opts = (rows: any[] | null, f: (x: any) => string) => (rows || []).map(x => [x.id, f(x)])
 
 export const T = ({ children }: { children: React.ReactNode }) => <h1 className="text-2xl font-semibold text-belca-navy mb-5">{children}</h1>
-export const Kpi = ({ t, v }: { t: string; v: any }) => <div className="bg-white rounded-xl p-4 shadow-sm border-t-4 border-belca-orange"><p className="text-xs text-slate-500">{t}</p><p className="text-2xl font-bold text-belca-navy">{v}</p></div>
+export const Kpi = ({ t, v, sub, delta, good, hero, unit = '%' }: { t: string; v: any; sub?: string; delta?: number | null; good?: 'up' | 'down'; hero?: boolean; unit?: string }) => {
+  const d = delta == null || !isFinite(delta) ? null : delta
+  const col = d == null || d === 0 || !good ? (hero ? 'text-white/70' : 'text-slate-500') : ((d > 0) === (good === 'up') ? (hero ? 'text-emerald-300' : 'text-emerald-600') : (hero ? 'text-red-300' : 'text-red-600'))
+  return <div className={`rounded-xl p-4 shadow-sm ${hero ? 'bg-belca-navy text-white' : 'bg-white border-t-4 border-belca-orange'}`}>
+    <p className={`text-xs ${hero ? 'text-white/70' : 'text-slate-500'}`}>{t}</p>
+    <p className={`font-bold ${hero ? 'text-3xl' : 'text-2xl text-belca-navy'}`}>{v}</p>
+    {(sub || d != null) && <p className="text-xs mt-1">{d != null && <span className={col}>{d > 0 ? '▲' : d < 0 ? '▼' : '■'} {Math.abs(d)}{unit} vs. período anterior{sub ? ' · ' : ''}</span>}
+      {sub && <span className={hero ? 'text-white/60' : 'text-slate-400'}>{sub}</span>}</p>}
+  </div>
+}
+export const H = ({ children }: { children: React.ReactNode }) => <h2 className="text-xs font-semibold tracking-widest uppercase text-slate-500 mt-8 mb-3 flex items-center gap-3">{children}<span className="flex-1 h-px bg-slate-200" /></h2>
 export const Kpis = ({ children }: { children: React.ReactNode }) => <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-3 mb-6">{children}</div>
 export const Grid = ({ children }: { children: React.ReactNode }) => <div className="grid lg:grid-cols-2 gap-4 mb-6">{children}</div>
 export const Box = ({ title, children, cls = '' }: { title?: string; children: React.ReactNode; cls?: string }) =>
@@ -41,7 +51,7 @@ export const Tbl = ({ cols, rows }: { cols: string[]; rows: any[][] }) =>
       {!rows.length && <tr><td className="p-4 text-slate-400" colSpan={cols.length}>Sin registros</td></tr>}</tbody></table></div>
 export const Badge = ({ children }: { children: React.ReactNode }) => <span className="px-2 py-0.5 rounded bg-slate-100 text-xs whitespace-nowrap">{children}</span>
 
-export function Filtros({ base, sp, cat, estados, gestores }: { base: string; sp: any; cat: any; estados?: boolean; gestores?: any[] }) {
+export function Filtros({ base, sp, cat, estados, gestores, todo }: { base: string; sp: any; cat: any; estados?: boolean; gestores?: any[]; todo?: boolean }) {
   const h = hoy()
   return <form className="bg-white rounded-xl p-3 mb-5 flex flex-wrap gap-3 items-end">
     <I n="desde" l="Desde" type="date" def={sp.desde} /><I n="hasta" l="Hasta" type="date" def={sp.hasta} />
@@ -51,5 +61,5 @@ export function Filtros({ base, sp, cat, estados, gestores }: { base: string; sp
     <B>Filtrar</B>
     <span className="flex gap-3 text-xs text-belca-navy underline pb-2">
       <Link href={`${base}?desde=${h}&hasta=${h}`}>Hoy</Link><Link href={`${base}?desde=${semana(h)}&hasta=${h}`}>Semana</Link>
-      <Link href={`${base}?desde=${h.slice(0, 8)}01&hasta=${h}`}>Mes</Link><Link href={base}>Limpiar</Link></span></form>
+      <Link href={`${base}?desde=${h.slice(0, 8)}01&hasta=${h}`}>Mes</Link>{todo && <Link href={`${base}?todo=1`}>Todo</Link>}<Link href={base}>{todo ? 'Mes actual' : 'Limpiar'}</Link></span></form>
 }

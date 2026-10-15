@@ -45,9 +45,9 @@ Tiempo estimado: 30–40 minutos. Siga los pasos en orden.
 Cada vez que cambie archivos en GitHub, Vercel republica solo.
 
 ## Qué incluye
-- **Dashboard** con 10 KPIs, 7 gráficos y filtros (fecha, hoy/semana/mes, cliente, estado, gestor).
+- **Panel gerencial** (Dashboard): resumen ejecutivo con comparación contra el período anterior, KPIs de devoluciones y canastas, casos abiertos más antiguos, 8 gráficos (incluye llamadas por hora) y filtros. Por defecto muestra el mes actual.
 - **Casos**: alta con fotos y firma, edición, cierre, bitácora de seguimientos, recuperación económica y evidencias por caso.
-- **Llamadas**: tablero (por día, por hora, promedio y tiempo de atención) calculado con los mismos casos. La llamada se registra una sola vez, en **Nuevo caso**.
+- Cada llamada de devolución se registra **una sola vez**, en **Nuevo caso**. Las llamadas por hora se ven en el Dashboard.
 - **Canastas**: registro con evidencia, estados automáticos, KPIs y 8 gráficos.
 - **Recuperación económica**, **Desempeño operativo** (por gestor), **Reportes** (Excel, PDF, CSV) y **Alertas**.
 - **Administración**: usuarios y roles, catálogos, importación masiva y umbrales.
