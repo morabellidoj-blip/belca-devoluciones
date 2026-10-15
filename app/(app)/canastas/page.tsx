@@ -40,7 +40,7 @@ export default async function Canastas({ searchParams }: { searchParams: Promise
       <Box title="Pendientes por vendedor"><Chart data={top(grp(abiertas, r => r.vendedores?.nombre, r => r.pendiente))} /></Box></Grid>
     <Box title="Registrar canastas"><form action={crear} className="grid sm:grid-cols-3 gap-3">
       <I n="fecha" l="Fecha" type="date" def={hoy()} /><S n="cliente_id" l="Cliente" req o={opts(c.clientes, x => `${x.codigo} · ${x.nombre}`)} /><S n="ruta_id" l="Ruta" o={opts(c.rutas, x => x.nombre)} />
-      <S n="vendedor_id" l="Vendedor" o={opts(c.vendedores, x => x.nombre)} /><I n="chofer" l="Chofer" />
+      <S n="vendedor_id" l="Vendedor" o={opts(c.vendedores, x => x.nombre)} />{c.choferes.length ? <S n="chofer" l="Chofer" o={c.choferes.map((x: any) => [x.nombre, x.nombre])} /> : <I n="chofer" l="Chofer" />}
       <I n="tipo_canasta" l="Tipo de canasta" req /><I n="entregada" l="Cantidad entregada" type="number" req /><I n="recuperada" l="Cantidad recuperada" type="number" def={0} />
       <S n="estado" l="Estado" def="pendiente" o={ESTADOS_CANASTA.map(e => [e, e])} /><A n="observaciones" l="Observaciones" cls="sm:col-span-2" /><F n="fotos" l="Evidencia fotográfica" />
       <div className="sm:col-span-3"><B>Guardar</B></div></form></Box>

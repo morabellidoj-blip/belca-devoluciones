@@ -6,12 +6,13 @@ export async function ctx() {
   return { sb, p: p as any, admin: p?.rol === 'admin' }
 }
 export async function cat(sb: any) {
-  const [c, v, r, m] = await Promise.all([
+  const [c, v, r, m, ch] = await Promise.all([
     sb.from('clientes').select('id,codigo,nombre').eq('activo', true).order('nombre').limit(5000),
     sb.from('vendedores').select('id,nombre').eq('activo', true).order('nombre'),
     sb.from('rutas').select('id,nombre').eq('activo', true).order('nombre'),
-    sb.from('motivos_devolucion').select('id,codigo,nombre').eq('activo', true)])
-  return { clientes: c.data || [], vendedores: v.data || [], rutas: r.data || [], motivos: (m.data || []).sort((a: any, b: any) => (Number(a.codigo) || 9999) - (Number(b.codigo) || 9999)) }
+    sb.from('motivos_devolucion').select('id,codigo,nombre').eq('activo', true),
+    sb.from('choferes').select('id,nombre').eq('activo', true).order('nombre')])
+  return { choferes: ch.data || [], clientes: c.data || [], vendedores: v.data || [], rutas: r.data || [], motivos: (m.data || []).sort((a: any, b: any) => (Number(a.codigo) || 9999) - (Number(b.codigo) || 9999)) }
 }
 export const g = (fd: FormData, k: string) => ((fd.get(k) as string) || null)
 export const num = (fd: FormData, k: string) => Number(fd.get(k) || 0)

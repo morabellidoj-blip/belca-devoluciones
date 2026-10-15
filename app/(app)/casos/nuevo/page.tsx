@@ -19,7 +19,7 @@ export default async function Nuevo() {
     <I n="fecha" l="Fecha" type="date" def={hoy()} />
     <S n="cliente_id" l="Cliente (código · nombre)" req o={opts(c.clientes, x => `${x.codigo} · ${x.nombre}`)} />
     <S n="vendedor_id" l="Vendedor" o={opts(c.vendedores, x => x.nombre)} /><S n="ruta_id" l="Ruta" o={opts(c.rutas, x => x.nombre)} />
-    <I n="chofer" l="Chofer" /><I n="factura" l="Factura" />
+    {c.choferes.length ? <S n="chofer" l="Chofer" o={c.choferes.map((x: any) => [x.nombre, x.nombre])} /> : <I n="chofer" l="Chofer" />}<I n="factura" l="Factura" />
     <I n="producto" l="Producto" /><I n="cantidad" l="Cantidad" type="number" />
     <I n="monto" l="Monto" type="number" /><S n="motivo_id" l="Motivo de devolución" req o={opts(c.motivos, x => motLabel(x))} />
     <S n="estado" l="Estado" def="nuevo" o={[['nuevo', 'Nuevo'], ['en_proceso', 'En proceso'], ['pendiente_cliente', 'Pendiente cliente'], ['pendiente_logistica', 'Pendiente logística']]} />
