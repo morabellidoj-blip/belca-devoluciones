@@ -34,6 +34,29 @@ async function importar(fd: FormData) {
   revalidatePath('/admin')
   redirect(error ? `/admin?err=${encodeURIComponent(error.message)}` : `/admin?ok=${n}&t=${tabla}`)
 }
+const TIPOS_AVISO: [string, string][] = [['critica', 'Incidencias críticas'], ['nuevo_caso', 'Cada caso nuevo'], ['sin_gestion', 'Casos con más de 48 h sin gestión'], ['por_vencer', 'Casos por vencer'],
+  ['canasta_antigua', 'Canastas pendientes por muchos días'], ['canasta_exceso', 'Cliente con exceso de canastas'], ['ruta_baja', 'Ruta con baja recuperación'], ['cierre', 'Casos cerrados']]
+const tarjeta = (titulo: string, texto: string) => ({ type: 'message', attachments: [{ contentType: 'application/vnd.microsoft.card.adaptive', contentUrl: null, content: { $schema: 'http://adaptivecards.io/schemas/adaptive-card.json', type: 'AdaptiveCard', version: '1.4',
+  body: [{ type: 'TextBlock', weight: 'Bolder', size: 'Medium', wrap: true, text: '🔔 ' + titulo }, { type: 'TextBlock', wrap: true, text: texto }] } }] })
+async function guardarTeams(fd: FormData) {
+  'use server'; const { sb } = await guard()
+  const rows = [{ clave: 'teams_url', valor: (g(fd, 'teams_url') || '').trim() }, { clave: 'app_url', valor: (g(fd, 'app_url') || '').trim() }, { clave: 'teams_tipos', valor: fd.getAll('tipos').join(',') }]
+  const { error } = await sb.from('ajustes').upsert(rows, { onConflict: 'clave' }); revalidatePath('/admin')
+  redirect(error ? `/admin?err=${encodeURIComponent(error.message)}` : `/admin?msg=${encodeURIComponent('Configuración de Teams guardada.')}`)
+}
+async function probarTeams() {
+  'use server'; const { sb } = await guard()
+  const { data } = await sb.from('ajustes').select('valor').eq('clave', 'teams_url').maybeSingle()
+  let out = ''
+  if (!data?.valor) out = 'err=' + encodeURIComponent('Primero guarde la dirección del webhook de Teams.')
+  else {
+    try {
+      const r = await fetch(data.valor, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(tarjeta('Prueba de avisos Belca', 'Si ve este mensaje, los avisos a Teams funcionan.')) })
+      out = r.ok ? 'msg=' + encodeURIComponent(`Mensaje de prueba enviado (respuesta ${r.status}). Revise el canal de Teams.`) : 'err=' + encodeURIComponent(`Teams respondió ${r.status}. Revise la dirección del webhook.`)
+    } catch (e: any) { out = 'err=' + encodeURIComponent('No se pudo contactar a Teams: ' + (e?.message || 'error')) }
+  }
+  redirect('/admin?' + out)
+}
 async function alternar(fd: FormData) { 'use server'; const { sb } = await guard(); await sb.from(g(fd, 'tabla')!).update({ activo: fd.get('activo') !== 'true' }).eq('id', g(fd, 'id')); revalidatePath('/admin') }
 async function config(fd: FormData) {
   'use server'; const { sb } = await guard()
@@ -45,13 +68,16 @@ export default async function Admin({ searchParams }: { searchParams: Promise<an
   const sp = await searchParams
   const { sb, admin } = await ctx()
   if (!admin) return <p>Solo administradores.</p>
-  const [{ data: us }, { data: cf }, { count: nc }, ru, ve, mo, ch] = await Promise.all([sb.from('profiles').select('*').order('nombre'), sb.from('config').select('*').order('clave'),
-    sb.from('clientes').select('*', { count: 'exact', head: true }), sb.from('rutas').select('*').order('nombre'), sb.from('vendedores').select('*').order('nombre'), sb.from('motivos_devolucion').select('*').order('nombre'), sb.from('choferes').select('*').order('nombre')])
+  const [{ data: us }, { data: cf }, { count: nc }, ru, ve, mo, ch, { data: aj }] = await Promise.all([sb.from('profiles').select('*').order('nombre'), sb.from('config').select('*').order('clave'),
+    sb.from('clientes').select('*', { count: 'exact', head: true }), sb.from('rutas').select('*').order('nombre'), sb.from('vendedores').select('*').order('nombre'), sb.from('motivos_devolucion').select('*').order('nombre'), sb.from('choferes').select('*').order('nombre'), sb.from('ajustes').select('clave,valor')])
+  const A: Record<string, string> = Object.fromEntries((aj || []).map((x: any) => [x.clave, x.valor || '']))
+  const sel = (A.teams_tipos || '').split(',')
   const lista = (tabla: string, rows: any[] | null) => <Box title={tabla.replace('_', ' ')}><div className="flex flex-wrap gap-2">{(rows || []).map(r =>
     <form key={r.id} action={alternar}><input type="hidden" name="tabla" value={tabla} /><input type="hidden" name="id" value={r.id} /><input type="hidden" name="activo" value={String(r.activo)} />
       <button className={`text-xs px-2 py-1 rounded border ${r.activo ? 'bg-white' : 'bg-slate-200 line-through text-slate-400'}`} title="Clic para activar/desactivar">{r.codigo ? r.codigo + ' · ' : ''}{r.nombre}</button></form>)}</div></Box>
   return <div><T>Administración</T>
     {sp.ok && <p className="bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-lg p-3 mb-4 text-sm">Importación lista: {sp.ok} registros procesados ({sp.t}).</p>}
+    {sp.msg && <p className="bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-lg p-3 mb-4 text-sm">{sp.msg}</p>}
     {sp.err && <p className="bg-red-50 text-red-800 border border-red-200 rounded-lg p-3 mb-4 text-sm">No se pudo importar: {sp.err}</p>}
     <Box title="Usuarios"><Tbl cols={['Nombre', 'Rol', 'Activo', '']} rows={(us || []).map((u: any) => [<form key="f" id={u.id} action={editarUsuario} className="contents"><input type="hidden" name="id" value={u.id} /><input name="nombre" defaultValue={u.nombre} className="inp" /></form>,
       <select key="r" form={u.id} name="rol" defaultValue={u.rol} className="inp"><option value="gestor">Gestor</option><option value="admin">Administrador</option></select>,
@@ -61,5 +87,10 @@ export default async function Admin({ searchParams }: { searchParams: Promise<an
     <Grid>{lista('rutas', ru.data)}{lista('vendedores', ve.data)}{lista('choferes', ch.data)}{lista('motivos_devolucion', mo.data)}
       <Box title={`Importar catálogos (clientes: ${nc})`}><form action={importar} className="grid gap-2"><S n="tabla" l="Catálogo" req o={[['clientes', 'Clientes'], ['choferes', 'Choferes'], ['rutas', 'Rutas'], ['vendedores', 'Vendedores'], ['motivos_devolucion', 'Motivos']]} />
         <label className="text-sm">Pegue desde Excel, sin encabezados. Clientes: 2 columnas (<code>código, nombre</code>). Motivos: 2 columnas (<code>código, nombre</code>). Choferes, vendedores y rutas: 1 columna con el nombre.<textarea name="lineas" rows={6} className="inp mt-1 font-mono text-xs" required /></label><B>Importar</B></form></Box></Grid>
+    <Box title="Avisos a Microsoft Teams"><form action={guardarTeams} className="grid gap-3">
+      <I n="teams_url" l="Dirección (URL) del webhook de Teams" def={A.teams_url} /><I n="app_url" l="Dirección de la app, para el enlace del mensaje (ej. https://su-app.vercel.app)" def={A.app_url} />
+      <fieldset className="text-sm"><legend className="mb-1">Enviar a Teams estos avisos:</legend><div className="grid sm:grid-cols-2 gap-1">{TIPOS_AVISO.map(([k, l]) =>
+        <label key={k} className="flex gap-2 items-center"><input type="checkbox" name="tipos" value={k} defaultChecked={sel.includes(k)} /> {l}</label>)}</div></fieldset><B>Guardar configuración de Teams</B></form>
+      <form action={probarTeams} className="mt-3"><button className="btn bg-white !text-belca-navy border border-belca-navy">Enviar mensaje de prueba a Teams</button></form></Box>
     <Box title="Umbrales de alertas"><form action={config} className="grid sm:grid-cols-3 gap-3">{(cf || []).map((c: any) => <I key={c.clave} n={`c_${c.clave}`} l={ETQ[c.clave] || c.clave} type="number" def={c.valor} />)}<div className="sm:col-span-3"><B>Guardar umbrales</B></div></form></Box></div>
 }

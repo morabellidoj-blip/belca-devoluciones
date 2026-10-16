@@ -11,7 +11,7 @@ Tiempo estimado: 30–40 minutos. Siga los pasos en orden.
 ## PARTE 2 · Base de datos (Supabase)
 1. **New project** → nombre `belca-devoluciones` → invente una contraseña de base (guárdela) → región más cercana (ej. East US) → Create. Espere 2 minutos.
 2. Menú izquierdo **SQL Editor** → **New query**.
-3. Abra el archivo `supabase/migrations/001_schema.sql` de este zip con el Bloc de notas, copie TODO, péguelo en Supabase y pulse **Run**. Debe decir "Success". Luego haga lo mismo, en este orden, con `002_unificar_llamadas.sql` (carga también los 23 motivos) y `003_choferes.sql`.
+3. Abra el archivo `supabase/migrations/001_schema.sql` de este zip con el Bloc de notas, copie TODO, péguelo en Supabase y pulse **Run**. Debe decir "Success". Luego haga lo mismo, en este orden, con `002_unificar_llamadas.sql` (carga también los 23 motivos), `003_choferes.sql` y `004_avisos_teams.sql`. Por último ejecute `005_programar_alertas.sql` para que las alertas se revisen cada 30 minutos aunque nadie tenga la app abierta (si da error, active la extensión en Database → Extensions → pg_cron y repita).
 4. Menú **Authentication → Users → Add user → Create new user**: ponga su correo y una contraseña, y marque **Auto Confirm User**.
 5. Vuelva a **SQL Editor** → New query, ejecute (cambie el correo por el suyo):
    `update profiles set rol='admin' where id=(select id from auth.users where email='SU_CORREO');`
@@ -51,6 +51,14 @@ Cada vez que cambie archivos en GitHub, Vercel republica solo.
 - **Canastas**: registro con evidencia, estados automáticos, KPIs y 8 gráficos.
 - **Recuperación económica**, **Desempeño operativo** (por gestor), **Reportes** (Excel, PDF, CSV) y **Alertas**.
 - **Administración**: usuarios y roles, catálogos, importación masiva y umbrales.
+
+## Avisos (sonido y Teams)
+**En cada computadora** (una sola vez): entre a la app y pulse **🔔 Activar sonido y avisos** en el menú izquierdo; en la ventana del navegador pulse **Permitir**. Desde ahí suena y sale un aviso de Windows cuando llega un caso nuevo o una alerta, aunque esté en otra pestaña o programa. La pestaña de la app debe seguir abierta (puede estar minimizada). Quien registra un caso no recibe aviso de su propio caso.
+
+**A Microsoft Teams** (llega aunque la app esté cerrada):
+1. En Teams, abra el canal que recibirá los avisos → **⋯ → Workflows** → plantilla **"Publicar en un canal cuando se reciba una solicitud de webhook"** → siga los pasos y **copie la dirección (URL)** que le entrega.
+2. En la app: **Administración → Avisos a Microsoft Teams**: pegue la URL, escriba la dirección de su app (la de Vercel), marque qué avisos quiere recibir y pulse **Guardar**.
+3. Pulse **Enviar mensaje de prueba a Teams** y confirme que llegó al canal.
 
 ## Notas importantes
 - Las alertas se generan al abrir Dashboard o Alertas y se muestran dentro de la app (campana con contador). **No se envían correos.**

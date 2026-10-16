@@ -1,4 +1,5 @@
 import { NavLink } from '@/lib/nav'
+import { Avisos } from '@/lib/avisos'
 import { redirect } from 'next/navigation'
 import { ctx } from '@/lib/data'
 import { supabaseServer } from '@/lib/supabase/server'
@@ -6,7 +7,7 @@ const nav = [['dashboard', 'Dashboard'], ['casos', 'Casos'], ['canastas', 'Canas
 async function salir() { 'use server'; const sb = await supabaseServer(); await sb.auth.signOut(); redirect('/login') }
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const { sb, p, admin } = await ctx()
-  const { count } = await sb.from('notificaciones').select('*', { count: 'exact', head: true }).eq('leida', false)
+  const { count } = await sb.from('notificaciones').select('*', { count: 'exact', head: true }).eq('leida', false).neq('tipo', 'nuevo_caso')
   return (
     <div className="min-h-screen md:flex">
       <aside className="md:w-56 bg-belca-navy text-white p-4 md:min-h-screen shrink-0">
@@ -16,6 +17,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <NavLink href="/alertas">Alertas {!!count && <span className="ml-1 bg-belca-orange text-xs rounded-full px-2">{count}</span>}</NavLink>
           {admin && <NavLink href="/admin">Administración</NavLink>}
         </nav>
+        <Avisos userId={p.id} />
         <form action={salir} className="mt-4 hidden md:block"><p className="text-xs opacity-60 mb-2">{p?.nombre} · {p?.rol}</p><button className="text-xs underline opacity-80">Cerrar sesión</button></form>
       </aside>
       <main className="flex-1 p-4 md:p-8 min-w-0">{children}</main>
