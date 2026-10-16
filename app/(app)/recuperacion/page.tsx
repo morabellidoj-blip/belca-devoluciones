@@ -1,6 +1,6 @@
 import { revalidatePath } from 'next/cache'
 import { motLabel } from '@/lib/ui'
-import { ctx, g, num, rangoTs } from '@/lib/data'
+import { all, ctx, g, num, rangoTs } from '@/lib/data'
 import { Chart } from '@/lib/chart'
 import { T, Kpi, Kpis, Grid, Box, I, S, B, Tbl, Filtros, grp, top, pct, fmt, TIPOS_REC } from '@/lib/ui'
 export const dynamic = 'force-dynamic'
@@ -14,7 +14,7 @@ async function borrar(fd: FormData) { 'use server'; const { sb, admin } = await 
 export default async function Recuperacion({ searchParams }: { searchParams: Promise<any> }) {
   const sp = await searchParams; const { sb, admin } = await ctx()
   const [{ data }, { data: casos }] = await Promise.all([
-    rangoTs(sb.from('recuperaciones').select('*,clientes(nombre),casos(numero,rutas(nombre),motivos_devolucion(codigo,nombre))').order('created_at', { ascending: false }).limit(3000), 'created_at', sp),
+    all(rangoTs(sb.from('recuperaciones').select('*,clientes(nombre),casos(numero,rutas(nombre),motivos_devolucion(codigo,nombre))').order('created_at', { ascending: false }), 'created_at', sp)),
     sb.from('casos').select('id,numero,clientes(nombre)').order('created_at', { ascending: false }).limit(500)])
   const R: any[] = data || []
   const rec = R.reduce((a, r) => a + Number(r.monto_recuperado), 0), perd = R.reduce((a, r) => a + Number(r.monto_perdida), 0)

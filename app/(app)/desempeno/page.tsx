@@ -1,14 +1,14 @@
-import { ctx, rango, rangoTs } from '@/lib/data'
+import { all, ctx, rango, rangoTs } from '@/lib/data'
 import { Chart } from '@/lib/chart'
 import { T, Kpi, Kpis, Grid, Box, Tbl, Filtros, grp, byKey, semana, pct, fmt } from '@/lib/ui'
 export const dynamic = 'force-dynamic'
 export default async function Desempeno({ searchParams }: { searchParams: Promise<any> }) {
   const sp = await searchParams; const { sb } = await ctx()
   const [{ data: casos }, { data: can }, { data: seg }, { data: rec }, { data: pr }] = await Promise.all([
-    rango(sb.from('casos').select('estado,gestor_id,created_at,fecha_cierre').limit(10000), 'fecha', sp),
-    rango(sb.from('canastas').select('entregada,recuperada,pendiente,estado'), 'fecha', sp),
-    rangoTs(sb.from('seguimientos').select('usuario_id'), 'created_at', sp),
-    rangoTs(sb.from('recuperaciones').select('created_by,monto_recuperado'), 'created_at', sp),
+    all(rango(sb.from('casos').select('estado,gestor_id,created_at,fecha_cierre'), 'fecha', sp)),
+    all(rango(sb.from('canastas').select('entregada,recuperada,pendiente,estado'), 'fecha', sp)),
+    all(rangoTs(sb.from('seguimientos').select('usuario_id'), 'created_at', sp)),
+    all(rangoTs(sb.from('recuperaciones').select('created_by,monto_recuperado'), 'created_at', sp)),
     sb.from('profiles').select('id,nombre').eq('activo', true)])
   const C: any[] = casos || [], K: any[] = can || []
   const cerrados = C.filter(c => c.fecha_cierre)

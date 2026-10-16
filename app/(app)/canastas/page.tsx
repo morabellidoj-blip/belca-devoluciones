@@ -1,7 +1,8 @@
 import { revalidatePath } from 'next/cache'
-import { ctx, cat, g, num, rango, subir } from '@/lib/data'
+import { all, ctx, cat, g, num, rango, subir } from '@/lib/data'
 import { Chart } from '@/lib/chart'
-import { T, Kpi, Kpis, Grid, Box, I, S, A, F, B, Tbl, Badge, Filtros, opts, grp, top, byKey, ratio, semana, pct, fmt, hoy, ESTADOS_CANASTA } from '@/lib/ui'
+import { Combo } from '@/lib/combo'
+import { cliLabel, T, Kpi, Kpis, Grid, Box, I, S, A, F, B, Tbl, Badge, Filtros, opts, grp, top, byKey, ratio, semana, pct, fmt, hoy, ESTADOS_CANASTA } from '@/lib/ui'
 export const dynamic = 'force-dynamic'
 const estadoAuto = (est: string, ent: number, rec: number) => ['perdida', 'facturada'].includes(est) ? est : rec >= ent ? 'recuperada' : rec > 0 ? 'parcial' : 'pendiente'
 async function crear(fd: FormData) {
@@ -22,7 +23,7 @@ export default async function Canastas({ searchParams }: { searchParams: Promise
   const sp = await searchParams; const { sb, admin } = await ctx()
   let q = rango(sb.from('canastas').select('*,clientes(nombre,codigo),rutas(nombre),vendedores(nombre)').order('fecha', { ascending: false }).limit(5000), 'fecha', sp)
   if (sp.cliente_id) q = q.eq('cliente_id', sp.cliente_id)
-  const [{ data }, c] = await Promise.all([q, cat(sb)]); const R: any[] = data || []
+  const [{ data }, c] = await Promise.all([all(q), cat(sb)]); const R: any[] = data || []
   const abiertas = R.filter(r => ['pendiente', 'parcial'].includes(r.estado))
   const ent = R.reduce((a, r) => a + r.entregada, 0), rec = R.reduce((a, r) => a + r.recuperada, 0)
   const pend = abiertas.reduce((a, r) => a + r.pendiente, 0), perd = R.filter(r => r.estado === 'perdida').reduce((a, r) => a + r.pendiente, 0)
@@ -39,7 +40,7 @@ export default async function Canastas({ searchParams }: { searchParams: Promise
       <Box title="Pendientes por ruta"><Chart data={top(grp(abiertas, r => r.rutas?.nombre, r => r.pendiente))} /></Box>
       <Box title="Pendientes por vendedor"><Chart data={top(grp(abiertas, r => r.vendedores?.nombre, r => r.pendiente))} /></Box></Grid>
     <Box title="Registrar canastas"><form action={crear} className="grid sm:grid-cols-3 gap-3">
-      <I n="fecha" l="Fecha" type="date" def={hoy()} /><S n="cliente_id" l="Cliente" req o={opts(c.clientes, x => `${x.codigo} · ${x.nombre}`)} /><S n="ruta_id" l="Ruta" o={opts(c.rutas, x => x.nombre)} />
+      <I n="fecha" l="Fecha" type="date" def={hoy()} /><Combo name="cliente_id" label="Cliente (escriba código o nombre)" required options={c.clientes.map((x: any) => [x.id, cliLabel(x)])} /><S n="ruta_id" l="Ruta" o={opts(c.rutas, x => x.nombre)} />
       <S n="vendedor_id" l="Vendedor" o={opts(c.vendedores, x => x.nombre)} />{c.choferes.length ? <S n="chofer" l="Chofer" o={c.choferes.map((x: any) => [x.nombre, x.nombre])} /> : <I n="chofer" l="Chofer" />}
       <I n="tipo_canasta" l="Tipo de canasta" req /><I n="entregada" l="Cantidad entregada" type="number" req /><I n="recuperada" l="Cantidad recuperada" type="number" def={0} />
       <S n="estado" l="Estado" def="pendiente" o={ESTADOS_CANASTA.map(e => [e, e])} /><A n="observaciones" l="Observaciones" cls="sm:col-span-2" /><F n="fotos" l="Evidencia fotográfica" />

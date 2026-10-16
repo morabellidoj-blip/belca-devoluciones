@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { ctx, cat, rango, rangoTs } from '@/lib/data'
+import { all, ctx, cat, rango, rangoTs } from '@/lib/data'
 import { Chart } from '@/lib/chart'
 import { Kpi, Kpis, Grid, Box, H, Tbl, Badge, Filtros, grp, top, byKey, semana, pct, fmt, hoy, horaCR, motLabel, ESTADOS } from '@/lib/ui'
 export const dynamic = 'force-dynamic'
@@ -16,11 +16,11 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   if (sp.desde && sp.hasta) { const len = Math.round((+dd(sp.hasta) - +dd(sp.desde)) / 864e5) + 1; prev = { desde: addD(sp.desde, -len), hasta: addD(sp.desde, -1) } }
   const filt = (q: any) => { for (const k of ['cliente_id', 'estado', 'gestor_id']) if (sp[k]) q = q.eq(k, sp[k]); return q }
   const [{ data: casos }, { data: pc }, { data: rec }, { data: prec }, { data: can }, { data: viejos }, c, { data: gest }] = await Promise.all([
-    filt(rango(sb.from('casos').select('fecha,estado,monto,cliente_id,created_at,fecha_cierre,clientes(nombre),vendedores(nombre),motivos_devolucion(codigo,nombre)').limit(10000), 'fecha', sp)),
-    prev ? filt(rango(sb.from('casos').select('estado').limit(10000), 'fecha', prev)) : Promise.resolve({ data: null }),
-    rangoTs(sb.from('recuperaciones').select('monto_perdida,monto_recuperado,created_at').limit(10000), 'created_at', sp),
-    prev ? rangoTs(sb.from('recuperaciones').select('monto_recuperado'), 'created_at', prev) : Promise.resolve({ data: null }),
-    (sp.cliente_id ? (q: any) => q.eq('cliente_id', sp.cliente_id) : (q: any) => q)(rango(sb.from('canastas').select('entregada,recuperada,pendiente,estado').limit(10000), 'fecha', sp)),
+    all(filt(rango(sb.from('casos').select('fecha,estado,monto,cliente_id,created_at,fecha_cierre,clientes(nombre),vendedores(nombre),motivos_devolucion(codigo,nombre)'), 'fecha', sp))),
+    prev ? all(filt(rango(sb.from('casos').select('estado'), 'fecha', prev))) : Promise.resolve({ data: null }),
+    all(rangoTs(sb.from('recuperaciones').select('monto_perdida,monto_recuperado,created_at'), 'created_at', sp)),
+    prev ? all(rangoTs(sb.from('recuperaciones').select('monto_recuperado'), 'created_at', prev)) : Promise.resolve({ data: null }),
+    all((sp.cliente_id ? (q: any) => q.eq('cliente_id', sp.cliente_id) : (q: any) => q)(rango(sb.from('canastas').select('entregada,recuperada,pendiente,estado'), 'fecha', sp))),
     sb.from('casos').select('id,numero,created_at,estado,clientes(nombre),motivos_devolucion(codigo,nombre)').not('estado', 'in', '(resuelto,cerrado)').order('created_at').limit(8),
     cat(sb), sb.from('profiles').select('id,nombre').eq('activo', true)])
   const R: any[] = casos || [], P: any[] = pc || [], K: any[] = can || []

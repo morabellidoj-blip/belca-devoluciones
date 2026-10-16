@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { ctx, cat, g, num, subir } from '@/lib/data'
-import { T, I, S, A, F, B, opts, hoy, motLabel } from '@/lib/ui'
+import { Combo } from '@/lib/combo'
+import { cliLabel, T, I, S, A, F, B, opts, hoy, motLabel } from '@/lib/ui'
 async function crear(fd: FormData) {
   'use server'
   const { sb } = await ctx()
@@ -17,7 +18,7 @@ export default async function Nuevo() {
   return <form action={crear} className="bg-white rounded-xl p-6 max-w-4xl grid sm:grid-cols-2 gap-4">
     <div className="sm:col-span-2"><T>Nuevo caso</T></div>
     <I n="fecha" l="Fecha" type="date" def={hoy()} />
-    <S n="cliente_id" l="Cliente (código · nombre)" req o={opts(c.clientes, x => `${x.codigo} · ${x.nombre}`)} />
+    <Combo name="cliente_id" label="Cliente (escriba código o nombre)" required options={c.clientes.map((x: any) => [x.id, cliLabel(x)])} />
     <S n="vendedor_id" l="Vendedor" o={opts(c.vendedores, x => x.nombre)} /><S n="ruta_id" l="Ruta" o={opts(c.rutas, x => x.nombre)} />
     {c.choferes.length ? <S n="chofer" l="Chofer" o={c.choferes.map((x: any) => [x.nombre, x.nombre])} /> : <I n="chofer" l="Chofer" />}<I n="factura" l="Factura" />
     <I n="producto" l="Producto" /><I n="cantidad" l="Cantidad" type="number" />

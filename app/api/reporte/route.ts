@@ -2,10 +2,11 @@ import * as XLSX from 'xlsx'
 import { motLabel } from '@/lib/ui'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import { all } from '@/lib/data'
 import { supabaseServer } from '@/lib/supabase/server'
 import { grp, ESTADOS, TIPOS_REC, horaCR } from '@/lib/ui'
 export const dynamic = 'force-dynamic'
-const rg = (q: any, col: string, d: string | null, h: string | null) => { if (d) q = q.gte(col, d); if (h) q = q.lte(col, h); return q }
+const rg = (q: any, col: string, d: string | null, h: string | null) => { if (d) q = q.gte(col, d); if (h) q = q.lte(col, h); return all(q) }
 export async function GET(req: Request) {
   const u = new URL(req.url); const tipo = u.searchParams.get('tipo') || 'abiertos', fmt = u.searchParams.get('fmt') || 'xlsx'
   const d = u.searchParams.get('desde') || null, h = u.searchParams.get('hasta') || null

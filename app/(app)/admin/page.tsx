@@ -4,6 +4,7 @@ import { ctx, g } from '@/lib/data'
 import { adminClient } from '@/lib/admin'
 import { T, Box, Grid, I, S, B, Tbl, Badge } from '@/lib/ui'
 export const dynamic = 'force-dynamic'
+export const maxDuration = 60
 const guard = async () => { const c = await ctx(); if (!c.admin) throw new Error('Solo administradores'); return c }
 async function crearUsuario(fd: FormData) {
   'use server'; await guard()

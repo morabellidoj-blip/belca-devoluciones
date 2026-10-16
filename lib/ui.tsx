@@ -1,10 +1,12 @@
 import Link from 'next/link'
+import { Combo } from './combo'
 export const ESTADOS: Record<string, string> = { nuevo: 'Nuevo', en_proceso: 'En proceso', pendiente_cliente: 'Pendiente cliente', pendiente_logistica: 'Pendiente logística', resuelto: 'Resuelto', cerrado: 'Cerrado' }
 export const ESTADOS_CANASTA = ['pendiente', 'parcial', 'recuperada', 'perdida', 'facturada']
 export const TIPOS_REC: Record<string, string> = { reventa: 'Reventa', cobro_cliente: 'Cobro cliente', transportista: 'Recuperación transportista', proveedor: 'Recuperación proveedor', interna: 'Recuperación interna' }
 export const hoy = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Costa_Rica' })
 export const horaCR = (iso: string) => new Date(iso).toLocaleTimeString('en-GB', { timeZone: 'America/Costa_Rica', hour: '2-digit', minute: '2-digit', hour12: false })
 export const motLabel = (m: any) => (m ? (m.codigo ? `${m.codigo} · ${m.nombre}` : m.nombre) : '')
+export const cliLabel = (x: any) => (x.nombre && x.nombre !== x.codigo ? `${x.codigo} · ${x.nombre}` : String(x.codigo))
 export const fmt = (n: any) => Number(n || 0).toLocaleString('es-CR', { maximumFractionDigits: 0 })
 export const pct = (a: number, b: number) => (b ? Math.round((1000 * a) / b) / 10 : 0)
 type P = { name: string; value: number }
@@ -55,7 +57,7 @@ export function Filtros({ base, sp, cat, estados, gestores, todo }: { base: stri
   const h = hoy()
   return <form className="bg-white rounded-xl p-3 mb-5 flex flex-wrap gap-3 items-end">
     <I n="desde" l="Desde" type="date" def={sp.desde} /><I n="hasta" l="Hasta" type="date" def={sp.hasta} />
-    {cat && <S n="cliente_id" l="Cliente" def={sp.cliente_id} o={opts(cat.clientes, (c: any) => `${c.codigo} · ${c.nombre}`)} />}
+    {cat && <Combo name="cliente_id" label="Cliente" def={sp.cliente_id} cls="w-64" options={cat.clientes.map((x: any) => [x.id, cliLabel(x)])} />}
     {estados && <S n="estado" l="Estado" def={sp.estado} o={Object.entries(ESTADOS)} />}
     {gestores && <S n="gestor_id" l="Gestor" def={sp.gestor_id} o={opts(gestores, (g: any) => g.nombre)} />}
     <B>Filtrar</B>
