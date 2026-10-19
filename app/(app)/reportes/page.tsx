@@ -1,5 +1,5 @@
 import { T, Box, I, S } from '@/lib/ui'
-const REPORTES: [string, string][] = [['abiertos', 'Casos abiertos'], ['cerrados', 'Casos cerrados'], ['por_cliente', 'Casos por cliente'], ['por_vendedor', 'Casos por vendedor'],
+const REPORTES: [string, string][] = [['abiertos', 'Casos abiertos'], ['cerrados', 'Casos cerrados'], ['por_cliente', 'Casos por cliente'], ['por_vendedor', 'Casos por vendedor'], ['por_televenta', 'Casos por televenta'],
   ['por_ruta', 'Casos por ruta'], ['por_motivo', 'Casos por motivo'], ['recuperacion', 'Recuperación económica'], ['canastas', 'Canastas'], ['llamadas', 'Llamadas recibidas (casos con hora)']]
 export default function Reportes() {
   return <div><T>Reportes</T>

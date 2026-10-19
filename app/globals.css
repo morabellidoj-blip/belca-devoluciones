@@ -2,3 +2,5 @@
 body { @apply bg-slate-100 text-slate-800 antialiased; }
 .inp { @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-belca-orange focus:outline-none focus:ring-2 focus:ring-belca-orange/30; }
 .btn { @apply rounded-lg bg-belca-navy px-4 py-2 text-sm font-semibold text-white hover:bg-belca-navy/90 disabled:opacity-50; }
+
+@media print { aside, .no-print { display: none !important } main { padding: 0 !important } body { background: #fff !important } section, .rounded-xl { break-inside: avoid } }

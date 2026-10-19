@@ -1,11 +1,14 @@
 import { redirect } from 'next/navigation'
 import { ctx, cat, g, num, subir } from '@/lib/data'
 import { Combo } from '@/lib/combo'
-import { cliLabel, T, I, S, A, F, B, opts, hoy, motLabel } from '@/lib/ui'
+import { TeleVend } from '@/lib/televend'
+import { NCLI, NMOT, NCHO, NRUT, NVEN, ntele } from '@/lib/nuevos'
+import { cliLabel, T, I, S, A, F, B, hoy, motLabel } from '@/lib/ui'
 async function crear(fd: FormData) {
   'use server'
   const { sb } = await ctx()
   const { data, error } = await sb.from('casos').insert({ fecha: g(fd, 'fecha') || hoy(), cliente_id: g(fd, 'cliente_id'), vendedor_id: g(fd, 'vendedor_id'), ruta_id: g(fd, 'ruta_id'),
+    ...(g(fd, 'televenta_id') ? { televenta_id: g(fd, 'televenta_id') } : {}),
     chofer: g(fd, 'chofer'), factura: g(fd, 'factura'), producto: g(fd, 'producto'),
     cantidad: num(fd, 'cantidad'), monto: num(fd, 'monto'), motivo_id: g(fd, 'motivo_id'), estado: g(fd, 'estado') || 'nuevo',
     observaciones: g(fd, 'observaciones'), critico: fd.get('critico') === 'on' }).select('id').single()
@@ -15,16 +18,18 @@ async function crear(fd: FormData) {
 }
 export default async function Nuevo() {
   const { sb } = await ctx(); const c = await cat(sb)
+  const vend = c.vendedores.map((x: any) => [x.id, x.nombre])
   return <form action={crear} className="bg-white rounded-xl p-6 max-w-4xl grid sm:grid-cols-2 gap-4">
-    <div className="sm:col-span-2"><T>Nuevo caso</T></div>
+    <div className="sm:col-span-2"><T>Nuevo caso</T><p className="text-sm text-slate-500 -mt-3">Si un cliente, motivo, chofer, vendedor, ruta o televenta no existe, escríbalo y use <b>➕ Crear</b> al final de la lista.</p></div>
     <I n="fecha" l="Fecha" type="date" def={hoy()} />
-    <Combo name="cliente_id" label="Cliente (escriba código o nombre)" required options={c.clientes.map((x: any) => [x.id, cliLabel(x)])} />
-    <S n="vendedor_id" l="Vendedor" o={opts(c.vendedores, x => x.nombre)} /><S n="ruta_id" l="Ruta" o={opts(c.rutas, x => x.nombre)} />
-    {c.choferes.length ? <S n="chofer" l="Chofer" o={c.choferes.map((x: any) => [x.nombre, x.nombre])} /> : <I n="chofer" l="Chofer" />}<I n="factura" l="Factura" />
-    <I n="producto" l="Producto" /><I n="cantidad" l="Cantidad" type="number" />
-    <I n="monto" l="Monto" type="number" /><S n="motivo_id" l="Motivo de devolución" req o={opts(c.motivos, x => motLabel(x))} />
+    <Combo name="cliente_id" label="Cliente (escriba código o nombre)" required nuevo={NCLI} options={c.clientes.map((x: any) => [x.id, cliLabel(x)])} />
+    <TeleVend televentas={c.televentas} vendedores={vend} nTele={ntele(vend)} nVend={NVEN} />
+    <Combo name="ruta_id" label="Ruta" nuevo={NRUT} options={c.rutas.map((x: any) => [x.id, x.nombre])} />
+    <Combo name="chofer" label="Chofer" nuevo={NCHO} options={c.choferes.map((x: any) => [x.nombre, x.nombre])} />
+    <I n="factura" l="Factura" /><I n="producto" l="Producto" />
+    <I n="cantidad" l="Cantidad" type="number" /><I n="monto" l="Monto" type="number" />
+    <Combo name="motivo_id" label="Motivo de devolución" required nuevo={NMOT} options={c.motivos.map((x: any) => [x.id, motLabel(x)])} />
     <S n="estado" l="Estado" def="nuevo" o={[['nuevo', 'Nuevo'], ['en_proceso', 'En proceso'], ['pendiente_cliente', 'Pendiente cliente'], ['pendiente_logistica', 'Pendiente logística']]} />
-    <div />
     <A n="observaciones" l="Observaciones" cls="sm:col-span-2" />
     <F n="fotos" l="Fotografías" /><F n="firma" l="Firma (opcional, foto)" multiple={false} />
     <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="critico" /> Incidencia crítica</label>

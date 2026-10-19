@@ -24,15 +24,23 @@ export const semana = (d: string) => { const t = new Date(d + 'T00:00:00Z'); t.s
 export const opts = (rows: any[] | null, f: (x: any) => string) => (rows || []).map(x => [x.id, f(x)])
 
 export const T = ({ children }: { children: React.ReactNode }) => <h1 className="text-2xl font-semibold text-belca-navy mb-5">{children}</h1>
-export const Kpi = ({ t, v, sub, delta, good, hero, unit = '%' }: { t: string; v: any; sub?: string; delta?: number | null; good?: 'up' | 'down'; hero?: boolean; unit?: string }) => {
+export const Kpi = ({ t, v, sub, delta, good, hero, unit = '%', tone }: { t: string; v: any; sub?: string; delta?: number | null; good?: 'up' | 'down'; hero?: boolean; unit?: string; tone?: 'ok' | 'warn' | 'bad' }) => {
   const d = delta == null || !isFinite(delta) ? null : delta
   const col = d == null || d === 0 || !good ? (hero ? 'text-white/70' : 'text-slate-500') : ((d > 0) === (good === 'up') ? (hero ? 'text-emerald-300' : 'text-emerald-600') : (hero ? 'text-red-300' : 'text-red-600'))
   return <div className={`rounded-xl p-4 shadow-sm ${hero ? 'bg-belca-navy text-white' : 'bg-white border-t-4 border-belca-orange'}`}>
-    <p className={`text-xs ${hero ? 'text-white/70' : 'text-slate-500'}`}>{t}</p>
+    <p className={`text-xs flex items-center gap-1.5 ${hero ? 'text-white/70' : 'text-slate-500'}`}>{tone && <span className={`inline-block w-2.5 h-2.5 rounded-full ${tone === 'ok' ? 'bg-emerald-400' : tone === 'warn' ? 'bg-amber-400' : 'bg-red-500'}`} />}{t}</p>
     <p className={`font-bold ${hero ? 'text-3xl' : 'text-2xl text-belca-navy'}`}>{v}</p>
     {(sub || d != null) && <p className="text-xs mt-1">{d != null && <span className={col}>{d > 0 ? '▲' : d < 0 ? '▼' : '■'} {Math.abs(d)}{unit} vs. período anterior{sub ? ' · ' : ''}</span>}
       {sub && <span className={hero ? 'text-white/60' : 'text-slate-400'}>{sub}</span>}</p>}
   </div>
+}
+export const Rank = ({ items, total }: { items: { name: string; value: number }[]; total: number }) => {
+  const max = Math.max(...items.map(x => x.value), 1)
+  return <ol className="space-y-2.5">{items.map((x, i) => <li key={x.name}>
+    <div className="flex justify-between gap-3 text-sm"><span className="truncate"><b className="text-slate-400 mr-1.5">{i + 1}</b>{x.name}</span>
+      <span className="whitespace-nowrap font-medium">{fmt(x.value)} <span className="text-slate-400 font-normal">· {pct(x.value, total)}%</span></span></div>
+    <div className="h-1.5 rounded bg-slate-100 mt-1"><div className="h-1.5 rounded bg-belca-navy" style={{ width: `${(100 * x.value) / max}%` }} /></div></li>)}
+    {!items.length && <p className="text-sm text-slate-400">Sin datos</p>}</ol>
 }
 export const H = ({ children }: { children: React.ReactNode }) => <h2 className="text-xs font-semibold tracking-widest uppercase text-slate-500 mt-8 mb-3 flex items-center gap-3">{children}<span className="flex-1 h-px bg-slate-200" /></h2>
 export const Kpis = ({ children }: { children: React.ReactNode }) => <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-3 mb-6">{children}</div>
@@ -55,7 +63,7 @@ export const Badge = ({ children }: { children: React.ReactNode }) => <span clas
 
 export function Filtros({ base, sp, cat, estados, gestores, todo }: { base: string; sp: any; cat: any; estados?: boolean; gestores?: any[]; todo?: boolean }) {
   const h = hoy()
-  return <form className="bg-white rounded-xl p-3 mb-5 flex flex-wrap gap-3 items-end">
+  return <form className="no-print bg-white rounded-xl p-3 mb-5 flex flex-wrap gap-3 items-end">
     <I n="desde" l="Desde" type="date" def={sp.desde} /><I n="hasta" l="Hasta" type="date" def={sp.hasta} />
     {cat && <Combo name="cliente_id" label="Cliente" def={sp.cliente_id} cls="w-64" options={cat.clientes.map((x: any) => [x.id, cliLabel(x)])} />}
     {estados && <S n="estado" l="Estado" def={sp.estado} o={Object.entries(ESTADOS)} />}

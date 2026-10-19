@@ -6,13 +6,14 @@ export async function ctx() {
   return { sb, p: p as any, admin: p?.rol === 'admin' }
 }
 export async function cat(sb: any) {
-  const [c, v, r, m, ch] = await Promise.all([
+  const [c, v, r, m, ch, tv] = await Promise.all([
     all(sb.from('clientes').select('id,codigo,nombre').eq('activo', true).order('nombre')),
     sb.from('vendedores').select('id,nombre').eq('activo', true).order('nombre'),
     sb.from('rutas').select('id,nombre').eq('activo', true).order('nombre'),
     sb.from('motivos_devolucion').select('id,codigo,nombre').eq('activo', true),
-    sb.from('choferes').select('id,nombre').eq('activo', true).order('nombre')])
-  return { choferes: ch.data || [], clientes: c.data || [], vendedores: v.data || [], rutas: r.data || [], motivos: (m.data || []).sort((a: any, b: any) => (Number(a.codigo) || 9999) - (Number(b.codigo) || 9999)) }
+    sb.from('choferes').select('id,nombre').eq('activo', true).order('nombre'),
+    sb.from('televentas').select('id,nombre,vendedor_id').eq('activo', true).order('nombre')])
+  return { televentas: tv.data || [], choferes: ch.data || [], clientes: c.data || [], vendedores: v.data || [], rutas: r.data || [], motivos: (m.data || []).sort((a: any, b: any) => (Number(a.codigo) || 9999) - (Number(b.codigo) || 9999)) }
 }
 export async function all(q: any, max = 50000) {
   q = q.order('id', { ascending: true }); const out: any[] = []

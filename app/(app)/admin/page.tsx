@@ -18,7 +18,7 @@ async function editarUsuario(fd: FormData) {
 async function importar(fd: FormData) {
   'use server'; const { sb } = await guard()
   const tabla = g(fd, 'tabla')!
-  if (!['clientes', 'rutas', 'vendedores', 'motivos_devolucion', 'choferes'].includes(tabla)) throw new Error('Catálogo no válido')
+  if (!['clientes', 'rutas', 'vendedores', 'motivos_devolucion', 'choferes', 'televentas'].includes(tabla)) throw new Error('Catálogo no válido')
   const lineas = (g(fd, 'lineas') || '').split('\n').map(l => l.trim()).filter(Boolean)
   const parse = (l: string) => (/[;\t]/.test(l) ? l.split(/[;\t]/) : l.split(/,(.*)/))
   let error: any = null, n = 0
@@ -27,6 +27,15 @@ async function importar(fd: FormData) {
     lineas.forEach(l => { const [codigo, nombre] = parse(l); if (codigo?.trim()) m.set(codigo.trim(), { codigo: codigo.trim(), nombre: (nombre || codigo).trim() }) })
     const rows = Array.from(m.values()); n = rows.length
     for (let i = 0; i < rows.length && !error; i += 500) error = (await sb.from(tabla).upsert(rows.slice(i, i + 500), { onConflict: 'codigo' })).error
+  } else if (tabla === 'televentas') {
+    const m = new Map<string, any>()
+    lineas.forEach(l => { const [nombre, telefono, correo, vendedor] = (/[;\t]/.test(l) ? l.split(/[;\t]/) : l.split(',')).map(x => x.trim()); if (nombre) m.set(nombre, { nombre, telefono: telefono || null, correo: correo || null, vend: vendedor || '' }) })
+    const vn = Array.from(new Set(Array.from(m.values()).map(x => x.vend).filter(Boolean)))
+    if (vn.length) await sb.from('vendedores').upsert(vn.map(nombre => ({ nombre })), { onConflict: 'nombre', ignoreDuplicates: true })
+    const { data: ve } = await sb.from('vendedores').select('id,nombre')
+    const idv = (x: string) => ve?.find((v: any) => v.nombre.toLowerCase() === x.toLowerCase())?.id || null
+    const rows = Array.from(m.values()).map(x => ({ nombre: x.nombre, telefono: x.telefono, correo: x.correo, vendedor_id: x.vend ? idv(x.vend) : null })); n = rows.length
+    for (let i = 0; i < rows.length && !error; i += 500) error = (await sb.from('televentas').upsert(rows.slice(i, i + 500), { onConflict: 'nombre' })).error
   } else {
     const nombres = Array.from(new Set(lineas)); n = nombres.length
     error = (await sb.from(tabla).upsert(nombres.map(nombre => ({ nombre })), { onConflict: 'nombre', ignoreDuplicates: true })).error
@@ -68,8 +77,8 @@ export default async function Admin({ searchParams }: { searchParams: Promise<an
   const sp = await searchParams
   const { sb, admin } = await ctx()
   if (!admin) return <p>Solo administradores.</p>
-  const [{ data: us }, { data: cf }, { count: nc }, ru, ve, mo, ch, { data: aj }] = await Promise.all([sb.from('profiles').select('*').order('nombre'), sb.from('config').select('*').order('clave'),
-    sb.from('clientes').select('*', { count: 'exact', head: true }), sb.from('rutas').select('*').order('nombre'), sb.from('vendedores').select('*').order('nombre'), sb.from('motivos_devolucion').select('*').order('nombre'), sb.from('choferes').select('*').order('nombre'), sb.from('ajustes').select('clave,valor')])
+  const [{ data: us }, { data: cf }, { count: nc }, ru, ve, mo, ch, { data: aj }, { data: tv }] = await Promise.all([sb.from('profiles').select('*').order('nombre'), sb.from('config').select('*').order('clave'),
+    sb.from('clientes').select('*', { count: 'exact', head: true }), sb.from('rutas').select('*').order('nombre'), sb.from('vendedores').select('*').order('nombre'), sb.from('motivos_devolucion').select('*').order('nombre'), sb.from('choferes').select('*').order('nombre'), sb.from('ajustes').select('clave,valor'), sb.from('televentas').select('*,vendedores(nombre)').order('nombre').limit(300)])
   const A: Record<string, string> = Object.fromEntries((aj || []).map((x: any) => [x.clave, x.valor || '']))
   const sel = (A.teams_tipos || '').split(',')
   const lista = (tabla: string, rows: any[] | null) => <Box title={tabla.replace('_', ' ')}><div className="flex flex-wrap gap-2">{(rows || []).map(r =>
@@ -85,8 +94,11 @@ export default async function Admin({ searchParams }: { searchParams: Promise<an
       <form action={crearUsuario} className="grid sm:grid-cols-5 gap-2 items-end mt-4"><I n="nombre" l="Nombre" req /><I n="email" l="Correo" type="email" req /><I n="password" l="Contraseña (mín. 6)" req />
         <S n="rol" l="Rol" def="gestor" o={[['gestor', 'Gestor de devoluciones'], ['admin', 'Administrador']]} /><B>Crear usuario</B></form></Box>
     <Grid>{lista('rutas', ru.data)}{lista('vendedores', ve.data)}{lista('choferes', ch.data)}{lista('motivos_devolucion', mo.data)}
-      <Box title={`Importar catálogos (clientes: ${nc})`}><form action={importar} className="grid gap-2"><S n="tabla" l="Catálogo" req o={[['clientes', 'Clientes'], ['choferes', 'Choferes'], ['rutas', 'Rutas'], ['vendedores', 'Vendedores'], ['motivos_devolucion', 'Motivos']]} />
-        <label className="text-sm">Pegue desde Excel, sin encabezados. Clientes: 2 columnas (<code>código, nombre</code>). Motivos: 2 columnas (<code>código, nombre</code>). Choferes, vendedores y rutas: 1 columna con el nombre.<textarea name="lineas" rows={6} className="inp mt-1 font-mono text-xs" required /></label><B>Importar</B></form></Box></Grid>
+      <Box title={`Importar catálogos (clientes: ${nc})`}><form action={importar} className="grid gap-2"><S n="tabla" l="Catálogo" req o={[['clientes', 'Clientes'], ['choferes', 'Choferes'], ['televentas', 'Televentas'], ['rutas', 'Rutas'], ['vendedores', 'Vendedores'], ['motivos_devolucion', 'Motivos']]} />
+        <label className="text-sm">Pegue desde Excel, sin encabezados. Clientes: 2 columnas (<code>código, nombre</code>). Motivos: 2 columnas (<code>código, nombre</code>). Televentas: 4 columnas (<code>nombre, número, correo, vendedor</code>; si el vendedor no existe se crea). Choferes, vendedores y rutas: 1 columna con el nombre.<textarea name="lineas" rows={6} className="inp mt-1 font-mono text-xs" required /></label><B>Importar</B></form></Box></Grid>
+    <Box title={`Televentas (${(tv || []).length})`}><Tbl cols={['Nombre', 'Número', 'Correo', 'Vendedor', 'Estado']} rows={(tv || []).map((t: any) => [t.nombre, t.telefono, t.correo, t.vendedores?.nombre,
+      <form key="a" action={alternar}><input type="hidden" name="tabla" value="televentas" /><input type="hidden" name="id" value={t.id} /><input type="hidden" name="activo" value={String(t.activo)} />
+        <button className={`text-xs px-2 py-1 rounded border ${t.activo ? 'bg-white' : 'bg-slate-200 text-slate-400'}`}>{t.activo ? 'Activa' : 'Inactiva'}</button></form>])} /></Box>
     <Box title="Avisos a Microsoft Teams"><form action={guardarTeams} className="grid gap-3">
       <I n="teams_url" l="Dirección (URL) del webhook de Teams" def={A.teams_url} /><I n="app_url" l="Dirección de la app, para el enlace del mensaje (ej. https://su-app.vercel.app)" def={A.app_url} />
       <fieldset className="text-sm"><legend className="mb-1">Enviar a Teams estos avisos:</legend><div className="grid sm:grid-cols-2 gap-1">{TIPOS_AVISO.map(([k, l]) =>

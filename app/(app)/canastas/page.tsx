@@ -2,6 +2,7 @@ import { revalidatePath } from 'next/cache'
 import { all, ctx, cat, g, num, rango, subir } from '@/lib/data'
 import { Chart } from '@/lib/chart'
 import { Combo } from '@/lib/combo'
+import { NCLI, NRUT, NVEN, NCHO } from '@/lib/nuevos'
 import { cliLabel, T, Kpi, Kpis, Grid, Box, I, S, A, F, B, Tbl, Badge, Filtros, opts, grp, top, byKey, ratio, semana, pct, fmt, hoy, ESTADOS_CANASTA } from '@/lib/ui'
 export const dynamic = 'force-dynamic'
 const estadoAuto = (est: string, ent: number, rec: number) => ['perdida', 'facturada'].includes(est) ? est : rec >= ent ? 'recuperada' : rec > 0 ? 'parcial' : 'pendiente'
@@ -40,8 +41,8 @@ export default async function Canastas({ searchParams }: { searchParams: Promise
       <Box title="Pendientes por ruta"><Chart data={top(grp(abiertas, r => r.rutas?.nombre, r => r.pendiente))} /></Box>
       <Box title="Pendientes por vendedor"><Chart data={top(grp(abiertas, r => r.vendedores?.nombre, r => r.pendiente))} /></Box></Grid>
     <Box title="Registrar canastas"><form action={crear} className="grid sm:grid-cols-3 gap-3">
-      <I n="fecha" l="Fecha" type="date" def={hoy()} /><Combo name="cliente_id" label="Cliente (escriba código o nombre)" required options={c.clientes.map((x: any) => [x.id, cliLabel(x)])} /><S n="ruta_id" l="Ruta" o={opts(c.rutas, x => x.nombre)} />
-      <S n="vendedor_id" l="Vendedor" o={opts(c.vendedores, x => x.nombre)} />{c.choferes.length ? <S n="chofer" l="Chofer" o={c.choferes.map((x: any) => [x.nombre, x.nombre])} /> : <I n="chofer" l="Chofer" />}
+      <I n="fecha" l="Fecha" type="date" def={hoy()} /><Combo name="cliente_id" label="Cliente (escriba código o nombre)" required nuevo={NCLI} options={c.clientes.map((x: any) => [x.id, cliLabel(x)])} /><Combo name="ruta_id" label="Ruta" nuevo={NRUT} options={c.rutas.map((x: any) => [x.id, x.nombre])} />
+      <Combo name="vendedor_id" label="Vendedor" nuevo={NVEN} options={c.vendedores.map((x: any) => [x.id, x.nombre])} /><Combo name="chofer" label="Chofer" nuevo={NCHO} options={c.choferes.map((x: any) => [x.nombre, x.nombre])} />
       <I n="tipo_canasta" l="Tipo de canasta" req /><I n="entregada" l="Cantidad entregada" type="number" req /><I n="recuperada" l="Cantidad recuperada" type="number" def={0} />
       <S n="estado" l="Estado" def="pendiente" o={ESTADOS_CANASTA.map(e => [e, e])} /><A n="observaciones" l="Observaciones" cls="sm:col-span-2" /><F n="fotos" l="Evidencia fotográfica" />
       <div className="sm:col-span-3"><B>Guardar</B></div></form></Box>

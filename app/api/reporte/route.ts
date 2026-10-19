@@ -12,15 +12,16 @@ export async function GET(req: Request) {
   const d = u.searchParams.get('desde') || null, h = u.searchParams.get('hasta') || null
   const sb: any = await supabaseServer()
   const { data: { user } } = await sb.auth.getUser(); if (!user) return new Response('No autorizado', { status: 401 })
-  const flat = (c: any) => ({ Caso: c.numero, Fecha: c.fecha, Cliente: c.clientes?.nombre, Vendedor: c.vendedores?.nombre, Ruta: c.rutas?.nombre, Motivo: motLabel(c?.motivos_devolucion),
+  const flat = (c: any) => ({ Caso: c.numero, Fecha: c.fecha, Cliente: c.clientes?.nombre, Televenta: c.televentas?.nombre, Vendedor: c.vendedores?.nombre, Ruta: c.rutas?.nombre, Motivo: motLabel(c?.motivos_devolucion),
     Producto: c.producto, Cantidad: c.cantidad, Monto: Number(c.monto), Estado: ESTADOS[c.estado], Factura: c.factura, Chofer: c.chofer })
-  const casos = async () => (await rg(sb.from('casos').select('numero,fecha,estado,monto,producto,cantidad,factura,chofer,clientes(nombre),vendedores(nombre),rutas(nombre),motivos_devolucion(codigo,nombre)').order('fecha', { ascending: false }).limit(10000), 'fecha', d, h)).data || []
+  const casos = async () => (await rg(sb.from('casos').select('numero,fecha,estado,monto,producto,cantidad,factura,chofer,clientes(nombre),vendedores(nombre),televentas(nombre),rutas(nombre),motivos_devolucion(codigo,nombre)').order('fecha', { ascending: false }).limit(10000), 'fecha', d, h)).data || []
   const resumen = (rows: any[], k: (r: any) => any) => { const n = grp(rows, k), m = grp(rows, k, r => r.monto); return n.map(x => ({ Grupo: x.name, Casos: x.value, Monto: m.find(y => y.name === x.name)?.value || 0 })).sort((a, b) => b.Casos - a.Casos) }
   let rows: any[] = []
   if (tipo === 'abiertos') rows = (await casos()).filter((c: any) => !['resuelto', 'cerrado'].includes(c.estado)).map(flat)
   else if (tipo === 'cerrados') rows = (await casos()).filter((c: any) => c.estado === 'cerrado').map(flat)
   else if (tipo === 'por_cliente') rows = resumen(await casos(), c => c.clientes?.nombre)
   else if (tipo === 'por_vendedor') rows = resumen(await casos(), c => c.vendedores?.nombre)
+  else if (tipo === 'por_televenta') rows = resumen(await casos(), c => c.televentas?.nombre)
   else if (tipo === 'por_ruta') rows = resumen(await casos(), c => c.rutas?.nombre)
   else if (tipo === 'por_motivo') rows = resumen(await casos(), c => motLabel(c?.motivos_devolucion))
   else if (tipo === 'recuperacion') rows = ((await rg(sb.from('recuperaciones').select('created_at,tipo,monto_perdida,monto_recuperado,clientes(nombre),casos(numero,rutas(nombre),motivos_devolucion(codigo,nombre))').limit(10000), 'created_at', d, h)).data || [])
