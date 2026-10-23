@@ -3,12 +3,13 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { crearItem } from './crear'
 export type Campo = { n: string; l: string; req?: boolean; opciones?: string[][] }
 export type Nuevo = { tabla: string; titulo: string; campos: Campo[] }
-export function Combo({ name, label, options, required, def, cls = '', nuevo, forzar, onSelect }: {
-  name: string; label: string; options: string[][]; required?: boolean; def?: string; cls?: string; nuevo?: Nuevo
+const NONE = '__none__'
+export function Combo({ name, label, options, required, def, cls = '', nuevo, forzar, onSelect, vacio, vacioValor = '' }: {
+  name: string; label: string; options: string[][]; required?: boolean; def?: string; cls?: string; nuevo?: Nuevo; vacio?: string; vacioValor?: string
   forzar?: { id: string; k: number }; onSelect?: (id: string, extra?: any) => void }) {
   const [extra, setExtra] = useState<string[][]>([])
-  const todas = useMemo(() => [...options, ...extra], [options, extra])
-  const ini = todas.find(o => o[0] === def)
+  const todas = useMemo(() => [...(vacio ? [[NONE, vacio]] : []), ...options, ...extra], [options, extra, vacio])
+  const ini = todas.find(o => o[0] === def || (vacio && def !== undefined && def === vacioValor && def !== '' && o[0] === NONE))
   const [q, setQ] = useState(ini ? ini[1] : ''); const [sel, setSel] = useState(ini ? ini[0] : ''); const [open, setOpen] = useState(false)
   const [panel, setPanel] = useState(false); const [f, setF] = useState<Record<string, string>>({}); const [err, setErr] = useState(''); const [busy, setBusy] = useState(false)
   const ref = useRef<HTMLInputElement>(null)
@@ -33,7 +34,7 @@ export function Combo({ name, label, options, required, def, cls = '', nuevo, fo
       <input ref={ref} value={q} required={required} autoComplete="off" placeholder="Escriba para buscar…" className="inp mt-1"
         onChange={e => { const v = e.target.value; setQ(v); const ex = todas.find(o => o[1].toLowerCase() === v.trim().toLowerCase()); setSel(ex ? ex[0] : ''); if (ex) onSelect?.(ex[0]); setOpen(true) }}
         onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 150)} /></label>
-    <input type="hidden" name={name} value={sel} />
+    <input type="hidden" name={name} value={sel === NONE ? vacioValor : sel} />
     {open && <ul className="absolute z-30 left-0 right-0 mt-1 max-h-64 overflow-auto bg-white border rounded-md shadow-lg">
       {lista.map(o => <li key={o[0]} onMouseDown={() => pick(o)} className="px-3 py-2 hover:bg-slate-100 cursor-pointer">{o[1]}</li>)}
       {!lista.length && <li className="px-3 py-2 text-slate-400">Sin resultados</li>}

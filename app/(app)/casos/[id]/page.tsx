@@ -38,7 +38,7 @@ export default async function Caso({ params }: { params: Promise<{ id: string }>
   return <div>
     <div className="flex items-center gap-3 mb-5"><T>{c.numero}</T><Badge>{ESTADOS[c.estado]}</Badge>{c.critico && <span className="text-red-600 text-xs font-bold">CRÍTICO</span>}</div>
     <Box><div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-      {dato('Fecha', c.fecha)}{dato('Cliente', `${c.clientes?.codigo} · ${c.clientes?.nombre}`)}{dato('Televenta', c.televentas?.nombre)}{dato('Vendedor', c.vendedores?.nombre)}{dato('Ruta', c.rutas?.nombre)}
+      {dato('Fecha', c.fecha)}{dato('Cliente', c.clientes ? `${c.clientes.codigo} · ${c.clientes.nombre}` : 'Sin asignar')}{dato('Televenta', c.televentas?.nombre)}{dato('Vendedor', c.vendedores?.nombre)}{dato('Ruta', c.rutas?.nombre)}
       {dato('Chofer', c.chofer)}{dato('Factura', c.factura)}
       {dato('Producto', c.producto)}{dato('Cantidad', c.cantidad)}{dato('Monto', fmt(c.monto))}{dato('Motivo', motLabel(c?.motivos_devolucion))}
       {dato('Registrado', c.created_at?.slice(0, 10) + ' ' + horaCR(c.created_at))}{dato('Gestor', c.profiles?.nombre)}{dato('Cierre', c.fecha_cierre?.slice(0, 16).replace('T', ' '))}</div></Box>

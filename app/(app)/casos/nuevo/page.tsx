@@ -22,7 +22,7 @@ export default async function Nuevo() {
   return <form action={crear} className="bg-white rounded-xl p-6 max-w-4xl grid sm:grid-cols-2 gap-4">
     <div className="sm:col-span-2"><T>Nuevo caso</T><p className="text-sm text-slate-500 -mt-3">Si un cliente, motivo, chofer, vendedor, ruta o televenta no existe, escríbalo y use <b>➕ Crear</b> al final de la lista.</p></div>
     <I n="fecha" l="Fecha" type="date" def={hoy()} />
-    <Combo name="cliente_id" label="Cliente (escriba código o nombre)" required nuevo={NCLI} options={c.clientes.map((x: any) => [x.id, cliLabel(x)])} />
+    <Combo name="cliente_id" label="Cliente (escriba código o nombre)" required vacio="Sin asignar" nuevo={NCLI} options={c.clientes.map((x: any) => [x.id, cliLabel(x)])} />
     <TeleVend televentas={c.televentas} vendedores={vend} nTele={ntele(vend)} nVend={NVEN} />
     <Combo name="ruta_id" label="Ruta" nuevo={NRUT} options={c.rutas.map((x: any) => [x.id, x.nombre])} />
     <Combo name="chofer" label="Chofer" nuevo={NCHO} options={c.choferes.map((x: any) => [x.nombre, x.nombre])} />

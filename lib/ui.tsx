@@ -7,11 +7,12 @@ export const hoy = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Ame
 export const horaCR = (iso: string) => new Date(iso).toLocaleTimeString('en-GB', { timeZone: 'America/Costa_Rica', hour: '2-digit', minute: '2-digit', hour12: false })
 export const motLabel = (m: any) => (m ? (m.codigo ? `${m.codigo} · ${m.nombre}` : m.nombre) : '')
 export const cliLabel = (x: any) => (x.nombre && x.nombre !== x.codigo ? `${x.codigo} · ${x.nombre}` : String(x.codigo))
+export const cliTxt = (x: any) => (x ? cliLabel(x) : 'Sin asignar')
 export const fmt = (n: any) => Number(n || 0).toLocaleString('es-CR', { maximumFractionDigits: 0 })
 export const pct = (a: number, b: number) => (b ? Math.round((1000 * a) / b) / 10 : 0)
 type P = { name: string; value: number }
 export const grp = (rows: any[], key: (r: any) => any, val: (r: any) => number = () => 1): P[] => {
-  const m: Record<string, number> = {}; rows.forEach(r => { const k = key(r) || '—'; m[k] = (m[k] || 0) + Number(val(r) || 0) })
+  const m: Record<string, number> = {}; rows.forEach(r => { const k = key(r) || 'Sin asignar'; m[k] = (m[k] || 0) + Number(val(r) || 0) })
   return Object.entries(m).map(([name, value]) => ({ name, value }))
 }
 export const top = (a: P[], n = 10) => [...a].sort((x, y) => y.value - x.value).slice(0, n)
@@ -61,11 +62,11 @@ export const Tbl = ({ cols, rows }: { cols: string[]; rows: any[][] }) =>
       {!rows.length && <tr><td className="p-4 text-slate-400" colSpan={cols.length}>Sin registros</td></tr>}</tbody></table></div>
 export const Badge = ({ children }: { children: React.ReactNode }) => <span className="px-2 py-0.5 rounded bg-slate-100 text-xs whitespace-nowrap">{children}</span>
 
-export function Filtros({ base, sp, cat, estados, gestores, todo }: { base: string; sp: any; cat: any; estados?: boolean; gestores?: any[]; todo?: boolean }) {
+export function Filtros({ base, sp, cat, estados, gestores, todo, sinAsignar }: { base: string; sp: any; cat: any; estados?: boolean; gestores?: any[]; todo?: boolean; sinAsignar?: boolean }) {
   const h = hoy()
   return <form className="no-print bg-white rounded-xl p-3 mb-5 flex flex-wrap gap-3 items-end">
     <I n="desde" l="Desde" type="date" def={sp.desde} /><I n="hasta" l="Hasta" type="date" def={sp.hasta} />
-    {cat && <Combo name="cliente_id" label="Cliente" def={sp.cliente_id} cls="w-64" options={cat.clientes.map((x: any) => [x.id, cliLabel(x)])} />}
+    {cat && <Combo name="cliente_id" label="Cliente" def={sp.cliente_id} cls="w-64" vacio={sinAsignar ? 'Sin asignar' : undefined} vacioValor="ninguno" options={cat.clientes.map((x: any) => [x.id, cliLabel(x)])} />}
     {estados && <S n="estado" l="Estado" def={sp.estado} o={Object.entries(ESTADOS)} />}
     {gestores && <S n="gestor_id" l="Gestor" def={sp.gestor_id} o={opts(gestores, (g: any) => g.nombre)} />}
     <B>Filtrar</B>

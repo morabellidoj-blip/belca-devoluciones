@@ -24,6 +24,7 @@ export async function all(q: any, max = 50000) {
   }
   return { data: out, error: null }
 }
+export const filtroCliente = (q: any, v: string) => (v === 'ninguno' ? q.is('cliente_id', null) : q.eq('cliente_id', v))
 export const g = (fd: FormData, k: string) => ((fd.get(k) as string) || null)
 export const num = (fd: FormData, k: string) => Number(fd.get(k) || 0)
 export const rango = (q: any, col: string, sp: any) => { if (sp.desde) q = q.gte(col, sp.desde); if (sp.hasta) q = q.lte(col, sp.hasta); return q }
