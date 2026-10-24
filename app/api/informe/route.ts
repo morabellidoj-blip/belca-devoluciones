@@ -6,11 +6,11 @@ export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 export async function GET(req: Request) {
   const u = new URL(req.url); const fmt = u.searchParams.get('fmt') === 'pdf' ? 'pdf' : 'xlsx'
-  const sp0: any = {}; u.searchParams.forEach((v, k) => { if (['desde', 'hasta', 'cliente_id', 'estado', 'gestor_id', 'todo'].includes(k) && v) sp0[k] = v })
+  const sp0: any = {}; u.searchParams.forEach((v, k) => { if (['desde', 'hasta', 'cliente_id', 'estado', 'gestor_id', 'area', 'todo'].includes(k) && v) sp0[k] = v })
   const sb: any = await supabaseServer()
   const { data: { user } } = await sb.auth.getUser(); if (!user) return new Response('No autorizado', { status: 401 })
   const m = calcular(await cargar(sb, sp0))
-  const { data: ab } = await all(sb.from('casos').select('numero,fecha,created_at,estado,monto,clientes(codigo,nombre),motivos_devolucion(codigo,nombre)').not('estado', 'in', '(resuelto,cerrado)').order('created_at'))
+  const { data: ab } = await all(sb.from('casos').select('numero,fecha,created_at,estado,monto,area,clientes(codigo,nombre),motivos_devolucion(codigo,nombre,area)').not('estado', 'in', '(resuelto,cerrado)').order('created_at'))
   let logo: Buffer | null = null
   try { const r = await fetch(new URL('/logo.png', req.url)); if (r.ok) logo = Buffer.from(await r.arrayBuffer()) } catch {}
   const name = `informe_gerencial_${m.H0}`

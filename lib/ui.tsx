@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { Combo } from './combo'
+import { AREAS_CORTO } from './areas'
 export const ESTADOS: Record<string, string> = { nuevo: 'Nuevo', en_proceso: 'En proceso', pendiente_cliente: 'Pendiente cliente', pendiente_logistica: 'Pendiente logística', resuelto: 'Resuelto', cerrado: 'Cerrado' }
 export const ESTADOS_CANASTA = ['pendiente', 'parcial', 'recuperada', 'perdida', 'facturada']
 export const TIPOS_REC: Record<string, string> = { reventa: 'Reventa', cobro_cliente: 'Cobro cliente', transportista: 'Recuperación transportista', proveedor: 'Recuperación proveedor', interna: 'Recuperación interna' }
@@ -62,12 +63,13 @@ export const Tbl = ({ cols, rows }: { cols: string[]; rows: any[][] }) =>
       {!rows.length && <tr><td className="p-4 text-slate-400" colSpan={cols.length}>Sin registros</td></tr>}</tbody></table></div>
 export const Badge = ({ children }: { children: React.ReactNode }) => <span className="px-2 py-0.5 rounded bg-slate-100 text-xs whitespace-nowrap">{children}</span>
 
-export function Filtros({ base, sp, cat, estados, gestores, todo, sinAsignar }: { base: string; sp: any; cat: any; estados?: boolean; gestores?: any[]; todo?: boolean; sinAsignar?: boolean }) {
+export function Filtros({ base, sp, cat, estados, gestores, todo, sinAsignar, areas }: { base: string; sp: any; cat: any; estados?: boolean; gestores?: any[]; todo?: boolean; sinAsignar?: boolean; areas?: boolean }) {
   const h = hoy()
   return <form className="no-print bg-white rounded-xl p-3 mb-5 flex flex-wrap gap-3 items-end">
     <I n="desde" l="Desde" type="date" def={sp.desde} /><I n="hasta" l="Hasta" type="date" def={sp.hasta} />
     {cat && <Combo name="cliente_id" label="Cliente" def={sp.cliente_id} cls="w-64" vacio={sinAsignar ? 'Sin asignar' : undefined} vacioValor="ninguno" options={cat.clientes.map((x: any) => [x.id, cliLabel(x)])} />}
     {estados && <S n="estado" l="Estado" def={sp.estado} o={Object.entries(ESTADOS)} />}
+    {areas && <S n="area" l="Área responsable" def={sp.area} o={Object.entries(AREAS_CORTO)} />}
     {gestores && <S n="gestor_id" l="Gestor" def={sp.gestor_id} o={opts(gestores, (g: any) => g.nombre)} />}
     <B>Filtrar</B>
     <span className="flex gap-3 text-xs text-belca-navy underline pb-2">

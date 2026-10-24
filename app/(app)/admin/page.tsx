@@ -2,7 +2,8 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { ctx, g } from '@/lib/data'
 import { adminClient } from '@/lib/admin'
-import { T, Box, Grid, I, S, B, Tbl, Badge } from '@/lib/ui'
+import { AREA_OPC } from '@/lib/areas'
+import { T, Box, Grid, I, S, B, Tbl, Badge, motLabel } from '@/lib/ui'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 const guard = async () => { const c = await ctx(); if (!c.admin) throw new Error('Solo administradores'); return c }
@@ -66,6 +67,11 @@ async function probarTeams() {
   }
   redirect('/admin?' + out)
 }
+async function guardarAreas(fd: FormData) {
+  'use server'; const { sb } = await guard()
+  for (const [k, v] of Array.from((fd as any).entries()) as [string, any][]) if (k.startsWith('area_')) await sb.from('motivos_devolucion').update({ area: v || 'investigar' }).eq('id', k.slice(5))
+  revalidatePath('/admin'); redirect('/admin?msg=' + encodeURIComponent('Áreas responsables guardadas. Aplican a los casos nuevos; los casos anteriores conservan su área.'))
+}
 async function alternar(fd: FormData) { 'use server'; const { sb } = await guard(); await sb.from(g(fd, 'tabla')!).update({ activo: fd.get('activo') !== 'true' }).eq('id', g(fd, 'id')); revalidatePath('/admin') }
 async function config(fd: FormData) {
   'use server'; const { sb } = await guard()
@@ -96,6 +102,9 @@ export default async function Admin({ searchParams }: { searchParams: Promise<an
     <Grid>{lista('rutas', ru.data)}{lista('vendedores', ve.data)}{lista('choferes', ch.data)}{lista('motivos_devolucion', mo.data)}
       <Box title={`Importar catálogos (clientes: ${nc})`}><form action={importar} className="grid gap-2"><S n="tabla" l="Catálogo" req o={[['clientes', 'Clientes'], ['choferes', 'Choferes'], ['televentas', 'Televentas'], ['rutas', 'Rutas'], ['vendedores', 'Vendedores'], ['motivos_devolucion', 'Motivos']]} />
         <label className="text-sm">Pegue desde Excel, sin encabezados. Clientes: 2 columnas (<code>código, nombre</code>). Motivos: 2 columnas (<code>código, nombre</code>). Televentas: 4 columnas (<code>nombre, número, correo, vendedor</code>; si el vendedor no existe se crea). Choferes, vendedores y rutas: 1 columna con el nombre.<textarea name="lineas" rows={6} className="inp mt-1 font-mono text-xs" required /></label><B>Importar</B></form></Box></Grid>
+    <Box title="Área responsable por motivo"><p className="text-sm text-slate-500 mb-3">Define a quién se le atribuye cada tipo de devolución. Solo los motivos del área <b>Ventas</b> cuentan contra vendedores y televentas en el Dashboard. Es una asignación sugerida: ajústela con su criterio.</p>
+      <form action={guardarAreas}><Tbl cols={['Motivo', 'Área responsable']} rows={(mo.data || []).filter((x: any) => x.activo).sort((a: any, b: any) => (Number(a.codigo) || 9999) - (Number(b.codigo) || 9999)).map((x: any) => [motLabel(x),
+        <select key={x.id} name={`area_${x.id}`} defaultValue={x.area || 'investigar'} className="inp">{AREA_OPC.map(o => <option key={o[0]} value={o[0]}>{o[1]}</option>)}</select>])} /><div className="mt-3"><B>Guardar áreas</B></div></form></Box>
     <Box title={`Televentas (${(tv || []).length})`}><Tbl cols={['Nombre', 'Número', 'Correo', 'Vendedor', 'Estado']} rows={(tv || []).map((t: any) => [t.nombre, t.telefono, t.correo, t.vendedores?.nombre,
       <form key="a" action={alternar}><input type="hidden" name="tabla" value="televentas" /><input type="hidden" name="id" value={t.id} /><input type="hidden" name="activo" value={String(t.activo)} />
         <button className={`text-xs px-2 py-1 rounded border ${t.activo ? 'bg-white' : 'bg-slate-200 text-slate-400'}`}>{t.activo ? 'Activa' : 'Inactiva'}</button></form>])} /></Box>

@@ -4,6 +4,7 @@ import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { ESTADOS, TIPOS_REC, fmt, pct, horaCR, motLabel, grp, byKey, semana } from './ui'
 import { resumen, META, delta, type M } from './metricas'
+import { AREAS_CORTO, areaDe } from './areas'
 
 const NAVY = 'FF0B1E38', ORANGE = 'FFF39C1F', ZEBRA = 'FFF8FAFC', BORDE = 'FFE2E8F0', BLANCO = 'FFFFFFFF'
 const plano = (s: string) => s.replace(/\*\*/g, '')
@@ -51,6 +52,22 @@ export async function construirXlsx(m: M, logo: Buffer | null, abiertos: any[]):
   m.insights.forEach((t: string, i: number) => { const f = fin + 2 + i; rs.mergeCells(f, 1, f, 4); const c = rs.getCell(f, 1); c.value = '•  ' + plano(t); c.alignment = { wrapText: true, vertical: 'top' }; rs.getRow(f).height = 30 })
   rs.getCell(fin + 3 + m.insights.length, 1).value = `Meta de efectividad de cierre: ${META}%.`; rs.getCell(fin + 3 + m.insights.length, 1).font = { italic: true, color: { argb: 'FF64748B' } }
 
+  // ---- Responsabilidad y diagnóstico
+  const rp = wb.addWorksheet('Responsabilidad', { views: [{ showGridLines: false }] }); banda(rp, 'Responsabilidad y diagnóstico', 6); anchos(rp, [52, 16, 18, 18, 16, 16])
+  let fr = 4
+  const bloq = (titulo: string, heads: string[], rows: any[][], fm: (string | undefined)[]) => { titSec(rp, fr, titulo); const fin = tabla(rp, fr + 1, heads, rows, fm); const ini = fr + 2; fr = fin + 2; return ini }
+  const ar = m.porArea.filter((x: any) => x.casos).sort((a: any, b: any) => b.valor - a.valor); const a0 = fr + 2
+  bloq('¿De dónde vienen las devoluciones? (por área responsable)', ['Área responsable', 'Casos', '% de casos', 'Valor devuelto', '% del valor'], ar.map((x: any, i: number) => [x.label, x.casos,
+    { formula: `IF(SUM(B$${a0}:B$${a0 + ar.length - 1})=0,0,B${a0 + i}/SUM(B$${a0}:B$${a0 + ar.length - 1}))`, result: pct(x.casos, m.total) / 100 }, x.valor,
+    { formula: `IF(SUM(D$${a0}:D$${a0 + ar.length - 1})=0,0,D${a0 + i}/SUM(D$${a0}:D$${a0 + ar.length - 1}))`, result: pct(x.valor, m.valor) / 100 }]), [undefined, n0, '0.0%', n0, '0.0%'])
+  const resp = (tit: string, etq: string, items: any[]) => { const it = items.filter(x => x.imp > 0).slice(0, 25); const i0 = fr + 2
+    bloq(tit, [etq, 'Casos totales', 'Imputables a ventas', '% imputable', 'Valor imputable'], it.map((x, i) => [x.name, x.casos, x.imp, { formula: `IF(B${i0 + i}=0,0,C${i0 + i}/B${i0 + i})`, result: x.casos ? x.imp / x.casos : 0 }, x.valorImp]), [undefined, n0, n0, '0.0%', n0]) }
+  resp('Vendedores con casos imputables a ventas', 'Vendedor', m.vResp); resp('Televentas con casos imputables a ventas', 'Televenta', m.tResp)
+  rp.getCell(fr - 1, 1).value = 'Solo cuentan los casos cuya área responsable es Ventas; los de almacén, transporte, calidad o cliente no se atribuyen al vendedor.'; rp.getCell(fr - 1, 1).font = { italic: true, color: { argb: 'FF64748B' } }; fr += 1
+  bloq('Clientes con más frecuencia (top 25)', ['Cliente', 'Casos', 'Valor', 'Por causa del cliente', 'Último caso', 'Reincidente'], m.cFrec.slice(0, 25).map((x: any) => [x.name, x.casos, x.valor, x.porCliente, x.ultima, x.casos >= 3 ? 'Sí' : '']), [undefined, n0, n0, n0])
+  bloq('Motivos principales (Pareto)', ['Motivo', 'Área', 'Casos', 'Valor', '% acumulado'], m.pareto.slice(0, 15).map((x: any) => [x.name, AREAS_CORTO[x.area], x.casos, x.valor, x.acum / 100]), [undefined, undefined, n0, n0, '0.0%'])
+  bloq('Casos abiertos por investigar', ['Caso', 'Fecha', 'Cliente', 'Motivo', 'Días abiertos', 'Valor'], m.porInvestigar.slice(0, 40).map((r: any) => [r.numero, r.fecha, cliTxt(r.clientes), motLabel(r.motivos_devolucion), Math.floor((Date.now() - +new Date(r.created_at)) / 864e5), Number(r.monto || 0)]), [undefined, undefined, undefined, undefined, n0, n0])
+
   // ---- Rankings (con porcentaje en fórmula y barra visual)
   const rank = (nombre: string, titulo: string, items: { name: string; casos: number; valor: number }[], etq: string) => {
     const ws = wb.addWorksheet(nombre, { views: [{ showGridLines: false, state: 'frozen', ySplit: 4 }] }); banda(ws, titulo, 5); anchos(ws, [52, 12, 18, 14, 44])
@@ -96,17 +113,17 @@ export async function construirXlsx(m: M, logo: Buffer | null, abiertos: any[]):
   tabla(cn, g2 + 2, ['Fecha', 'Cliente', 'Ruta', 'Chofer', 'Entregadas', 'Recuperadas', 'Pendientes'], m.K.map((r: any) => [r.fecha, cliTxt(r?.clientes), r.rutas?.nombre, r.chofer, r.entregada, r.recuperada, r.pendiente]), [undefined, undefined, undefined, undefined, n0, n0, n0])
 
   // ---- Casos abiertos
-  const ab = wb.addWorksheet('Casos abiertos', { views: [{ showGridLines: false, state: 'frozen', ySplit: 4 }] }); banda(ab, 'Casos abiertos (más antiguos primero)', 7); anchos(ab, [14, 14, 34, 52, 20, 14, 16])
-  tabla(ab, 4, ['Caso', 'Fecha', 'Cliente', 'Motivo', 'Estado', 'Días abiertos', 'Valor'], abiertos.map((r: any) => [r.numero, r.fecha, cliTxt(r?.clientes), motLabel(r.motivos_devolucion), ESTADOS[r.estado], Math.floor((Date.now() - +new Date(r.created_at)) / 864e5), Number(r.monto || 0)]), [undefined, undefined, undefined, undefined, undefined, n0, n0])
+  const ab = wb.addWorksheet('Casos abiertos', { views: [{ showGridLines: false, state: 'frozen', ySplit: 4 }] }); banda(ab, 'Casos abiertos (más antiguos primero)', 8); anchos(ab, [14, 14, 34, 52, 16, 20, 14, 16])
+  tabla(ab, 4, ['Caso', 'Fecha', 'Cliente', 'Motivo', 'Área', 'Estado', 'Días abiertos', 'Valor'], abiertos.map((r: any) => [r.numero, r.fecha, cliTxt(r?.clientes), motLabel(r.motivos_devolucion), AREAS_CORTO[areaDe(r)], ESTADOS[r.estado], Math.floor((Date.now() - +new Date(r.created_at)) / 864e5), Number(r.monto || 0)]), [undefined, undefined, undefined, undefined, undefined, undefined, n0, n0])
 
   // ---- Detalle de casos
-  const dt = wb.addWorksheet('Casos (detalle)', { views: [{ showGridLines: false, state: 'frozen', ySplit: 4 }] }); banda(dt, 'Registro completo de casos', 16)
-  anchos(dt, [14, 12, 8, 32, 22, 22, 18, 18, 46, 14, 24, 10, 14, 20, 9, 14])
-  const heads = ['Caso', 'Fecha', 'Hora', 'Cliente', 'Televenta', 'Vendedor', 'Ruta', 'Chofer', 'Motivo', 'Factura', 'Producto', 'Cantidad', 'Monto', 'Estado', 'Crítico', 'Horas a cierre']
-  const filas = [...m.R].sort((a: any, b: any) => (b.fecha + b.created_at).localeCompare(a.fecha + a.created_at)).map((r: any) => [r.numero, r.fecha, horaCR(r.created_at), cliTxt(r?.clientes), r.televentas?.nombre, r.vendedores?.nombre, r.rutas?.nombre, r.chofer, motLabel(r.motivos_devolucion), r.factura, r.producto, r.cantidad == null ? null : Number(r.cantidad), Number(r.monto || 0), ESTADOS[r.estado], r.critico ? 'Sí' : '', r.fecha_cierre ? Math.round((+new Date(r.fecha_cierre) - +new Date(r.created_at)) / 36e5 * 10) / 10 : null])
-  const fd = tabla(dt, 4, heads, filas, [undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, n0, n0, undefined, undefined, '0.0'])
+  const dt = wb.addWorksheet('Casos (detalle)', { views: [{ showGridLines: false, state: 'frozen', ySplit: 4 }] }); banda(dt, 'Registro completo de casos', 17)
+  anchos(dt, [14, 12, 8, 32, 22, 22, 18, 18, 46, 16, 14, 24, 10, 14, 20, 9, 14])
+  const heads = ['Caso', 'Fecha', 'Hora', 'Cliente', 'Televenta', 'Vendedor', 'Ruta', 'Chofer', 'Motivo', 'Área', 'Factura', 'Producto', 'Cantidad', 'Monto', 'Estado', 'Crítico', 'Horas a cierre']
+  const filas = [...m.R].sort((a: any, b: any) => (b.fecha + b.created_at).localeCompare(a.fecha + a.created_at)).map((r: any) => [r.numero, r.fecha, horaCR(r.created_at), cliTxt(r?.clientes), r.televentas?.nombre, r.vendedores?.nombre, r.rutas?.nombre, r.chofer, motLabel(r.motivos_devolucion), AREAS_CORTO[areaDe(r)], r.factura, r.producto, r.cantidad == null ? null : Number(r.cantidad), Number(r.monto || 0), ESTADOS[r.estado], r.critico ? 'Sí' : '', r.fecha_cierre ? Math.round((+new Date(r.fecha_cierre) - +new Date(r.created_at)) / 36e5 * 10) / 10 : null])
+  const fd = tabla(dt, 4, heads, filas, [undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, n0, n0, undefined, undefined, '0.0'])
   if (filas.length) { dt.autoFilter = { from: { row: 4, column: 1 }, to: { row: 4 + filas.length, column: heads.length } }
-    const t = dt.getRow(fd); t.getCell(1).value = 'TOTAL'; t.getCell(13).value = { formula: `SUBTOTAL(109,M5:M${fd - 1})`, result: m.valor }; t.getCell(13).numFmt = n0; t.getCell(12).value = ''
+    const t = dt.getRow(fd); t.getCell(1).value = 'TOTAL'; t.getCell(14).value = { formula: `SUBTOTAL(109,N5:N${fd - 1})`, result: m.valor }; t.getCell(14).numFmt = n0; t.getCell(13).value = ''
     for (let c = 1; c <= heads.length; c++) { t.getCell(c).font = { bold: true }; t.getCell(c).fill = fill('FFE2E8F0') } }
   wb.eachSheet(ws => { ws.pageSetup = { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9 } })
   return Buffer.from(await wb.xlsx.writeBuffer())
@@ -153,10 +170,10 @@ export function construirPdf(m: M, logo: Buffer | null, abiertos: any[]): ArrayB
     if (!top6.length) { doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...GR); doc.text('Sin datos', x, yy + 7) }
   }
   const nuevaPagina = (alto: number) => { if (y + alto > 280) { doc.addPage(); y = 16 } }
-  nuevaPagina(120); doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(...NV); doc.text('Dónde se concentra el valor devuelto', MG, y); y += 7
+  nuevaPagina(70); doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(...NV); doc.text('Diagnóstico: ¿de dónde vienen las devoluciones?', MG, y); y += 7
   const colw = (AN - 10) / 2
-  rk('Por motivo', resumen(m.R, (r: any) => motLabel(r.motivos_devolucion)), MG, y, colw); rk('Por cliente', resumen(m.R, (r: any) => cliTxt(r?.clientes)), MG + colw + 10, y, colw); y += 62
-  rk('Por vendedor', resumen(m.R, (r: any) => r.vendedores?.nombre), MG, y, colw); rk('Casos por televenta', resumen(m.R.filter((r: any) => r.televenta_id), (r: any) => r.televentas?.nombre), MG + colw + 10, y, colw, true); y += 62
+  rk('Por área responsable (valor)', m.porArea.filter((x: any) => x.casos).sort((a: any, b: any) => b.valor - a.valor).map((x: any) => ({ name: `${x.label} (${x.casos} casos)`, valor: x.valor })), MG, y, colw)
+  rk('Motivos principales (valor)', m.pareto.map((x: any) => ({ name: x.name, valor: x.valor })), MG + colw + 10, y, colw); y += 62
   // gráfico: casos por día
   nuevaPagina(60); doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(...NV); doc.text('Casos por día', MG, y); y += 4
   const dias = byKey(grp(m.R, (r: any) => r.fecha)), mxd = Math.max(...dias.map(d => d.value), 1), gh = 34, gy = y + 4
@@ -166,11 +183,17 @@ export function construirPdf(m: M, logo: Buffer | null, abiertos: any[]): ArrayB
   dias.forEach((d, i) => { const h = gh * d.value / mxd, x = MG + 8 + i * bw; doc.setFillColor(...NV); doc.rect(x + bw * 0.15, gy + gh - h, bw * 0.7, h, 'F')
     if (i % paso === 0) doc.text(d.name.slice(5), x + bw / 2, gy + gh + 4, { align: 'center' }) })
   if (!dias.length) doc.text('Sin datos', MG + 8, gy + 10)
-  y = gy + gh + 10
+  y = gy + gh + 14
   // tablas
   const tb = (titulo: string, head: string[], body: any[][], fin?: Record<number, any>) => { nuevaPagina(30); doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(...NV); doc.text(titulo, MG, y)
     autoTable(doc, { startY: y + 2, head: [head], body, margin: { left: MG, right: MG }, styles: { fontSize: 7.5, cellPadding: 1.8 }, headStyles: { fillColor: NV, textColor: 255 }, alternateRowStyles: { fillColor: [248, 250, 252] }, columnStyles: fin, didParseCell: (d: any) => { if (d.section === 'head' && fin?.[d.column.index]?.halign) d.cell.styles.halign = fin[d.column.index].halign } })
     y = (doc as any).lastAutoTable.finalY + 8 }
+  const imp = (items: any[]) => items.filter(x => x.imp > 0).slice(0, 8).map(x => [corta(x.name, 42), x.casos, x.imp, sp(x.valorImp)])
+  const R3 = { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' } }
+  tb('Responsabilidad de ventas: vendedores (solo casos imputables a ventas)', ['Vendedor', 'Casos totales', 'Imputables', 'Valor imputable'], imp(m.vResp), R3)
+  if (m.tResp.some((x: any) => x.imp > 0)) tb('Responsabilidad de ventas: televentas', ['Televenta', 'Casos totales', 'Imputables', 'Valor imputable'], imp(m.tResp), R3)
+  tb('Clientes con más frecuencia', ['Cliente', 'Casos', 'Valor', 'Por causa del cliente', 'Último caso'], m.cFrec.slice(0, 8).map((x: any) => [corta(x.name, 42) + (x.casos >= 3 ? '  (reincidente)' : ''), x.casos, sp(x.valor), x.porCliente, x.ultima]), { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' } })
+  if (m.porInvestigar.length) tb('Casos abiertos por investigar', ['Caso', 'Cliente', 'Motivo', 'Días'], m.porInvestigar.slice(0, 8).map((r: any) => [r.numero, corta(cliTxt(r.clientes), 30), corta(motLabel(r.motivos_devolucion), 40), Math.floor((Date.now() - +new Date(r.created_at)) / 864e5)]), { 3: { halign: 'right' } })
   tb('Casos abiertos con más antigüedad', ['Caso', 'Cliente', 'Motivo', 'Estado', 'Días'], abiertos.slice(0, 10).map((r: any) => [r.numero, corta(cliTxt(r?.clientes), 28), corta(motLabel(r.motivos_devolucion), 34), ESTADOS[r.estado], Math.floor((Date.now() - +new Date(r.created_at)) / 864e5)]), { 4: { halign: 'right' } })
   const rutas = (() => { const e = grp(m.K, (r: any) => r.rutas?.nombre, (r: any) => r.entregada), re = grp(m.K, (r: any) => r.rutas?.nombre, (r: any) => r.recuperada); return e.map(x => { const rc = re.find(z => z.name === x.name)?.value || 0; return [x.name, sp(x.value), sp(rc), `${pct(rc, x.value)}%`, sp(x.value - rc)] }) })()
   if (rutas.length) tb('Canastas por ruta', ['Ruta', 'Entregadas', 'Recuperadas', '% Recuperación', 'Pendientes'], rutas, { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' } })
