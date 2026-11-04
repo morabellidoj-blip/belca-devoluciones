@@ -69,8 +69,12 @@ async function probarTeams() {
 }
 async function guardarAreas(fd: FormData) {
   'use server'; const { sb } = await guard()
-  for (const [k, v] of Array.from((fd as any).entries()) as [string, any][]) if (k.startsWith('area_')) await sb.from('motivos_devolucion').update({ area: v || 'investigar' }).eq('id', k.slice(5))
+  for (const [k, v] of Array.from((fd as any).entries()) as [string, any][]) if (k.startsWith('area_')) await sb.from('motivos_devolucion').update({ area: v || 'investigar', permite_monto_cero: fd.has('cero_' + k.slice(5)) }).eq('id', k.slice(5))
   revalidatePath('/admin'); redirect('/admin?msg=' + encodeURIComponent('Áreas responsables guardadas. Aplican a los casos nuevos; los casos anteriores conservan su área.'))
+}
+async function enviarResumen() {
+  'use server'; const { sb } = await guard(); const { data, error } = await sb.rpc('resumen_semanal')
+  redirect('/admin?' + (error ? 'err=' + encodeURIComponent(error.message) : 'msg=' + encodeURIComponent(String(data))))
 }
 async function alternar(fd: FormData) { 'use server'; const { sb } = await guard(); await sb.from(g(fd, 'tabla')!).update({ activo: fd.get('activo') !== 'true' }).eq('id', g(fd, 'id')); revalidatePath('/admin') }
 async function config(fd: FormData) {
@@ -78,7 +82,7 @@ async function config(fd: FormData) {
   for (const [k, v] of Array.from((fd as any).entries()) as [string, any][]) if (k.startsWith('c_')) await sb.from('config').update({ valor: Number(v) }).eq('clave', k.slice(2))
   revalidatePath('/admin')
 }
-const ETQ: Record<string, string> = { horas_sin_gestion: 'Horas sin gestión (alerta)', horas_proximo_vencer: 'Horas para "próximo a vencer"', canastas_dias_alerta: 'Días con canastas pendientes (alerta)', canastas_max_pendientes: 'Máx. canastas pendientes por cliente', canastas_recuperacion_minima: '% mínimo de recuperación por ruta' }
+const ETQ: Record<string, string> = { meta_efectividad: 'Meta de efectividad de cierre (%)', horas_sin_gestion: 'Horas sin gestión (alerta)', horas_proximo_vencer: 'Horas para "próximo a vencer"', canastas_dias_alerta: 'Días con canastas pendientes (alerta)', canastas_max_pendientes: 'Máx. canastas pendientes por cliente', canastas_recuperacion_minima: '% mínimo de recuperación por ruta' }
 export default async function Admin({ searchParams }: { searchParams: Promise<any> }) {
   const sp = await searchParams
   const { sb, admin } = await ctx()
@@ -103,8 +107,8 @@ export default async function Admin({ searchParams }: { searchParams: Promise<an
       <Box title={`Importar catálogos (clientes: ${nc})`}><form action={importar} className="grid gap-2"><S n="tabla" l="Catálogo" req o={[['clientes', 'Clientes'], ['choferes', 'Choferes'], ['televentas', 'Televentas'], ['rutas', 'Rutas'], ['vendedores', 'Vendedores'], ['motivos_devolucion', 'Motivos']]} />
         <label className="text-sm">Pegue desde Excel, sin encabezados. Clientes: 2 columnas (<code>código, nombre</code>). Motivos: 2 columnas (<code>código, nombre</code>). Televentas: 4 columnas (<code>nombre, número, correo, vendedor</code>; si el vendedor no existe se crea). Choferes, vendedores y rutas: 1 columna con el nombre.<textarea name="lineas" rows={6} className="inp mt-1 font-mono text-xs" required /></label><B>Importar</B></form></Box></Grid>
     <Box title="Área responsable por motivo"><p className="text-sm text-slate-500 mb-3">Define a quién se le atribuye cada tipo de devolución. Solo los motivos del área <b>Ventas</b> cuentan contra vendedores y televentas en el Dashboard. Es una asignación sugerida: ajústela con su criterio.</p>
-      <form action={guardarAreas}><Tbl cols={['Motivo', 'Área responsable']} rows={(mo.data || []).filter((x: any) => x.activo).sort((a: any, b: any) => (Number(a.codigo) || 9999) - (Number(b.codigo) || 9999)).map((x: any) => [motLabel(x),
-        <select key={x.id} name={`area_${x.id}`} defaultValue={x.area || 'investigar'} className="inp">{AREA_OPC.map(o => <option key={o[0]} value={o[0]}>{o[1]}</option>)}</select>])} /><div className="mt-3"><B>Guardar áreas</B></div></form></Box>
+      <form action={guardarAreas}><Tbl cols={['Motivo', 'Área responsable', 'Monto 0']} rows={(mo.data || []).filter((x: any) => x.activo).sort((a: any, b: any) => (Number(a.codigo) || 9999) - (Number(b.codigo) || 9999)).map((x: any) => [motLabel(x),
+        <select key={x.id} name={`area_${x.id}`} defaultValue={x.area || 'investigar'} className="inp">{AREA_OPC.map(o => <option key={o[0]} value={o[0]}>{o[1]}</option>)}</select>, <label key={'c' + x.id} className="flex items-center gap-2 text-xs whitespace-nowrap"><input type="checkbox" name={`cero_${x.id}`} defaultChecked={x.permite_monto_cero} /> Puede ir sin monto</label>])} /><div className="mt-3"><B>Guardar áreas</B></div></form></Box>
     <Box title={`Televentas (${(tv || []).length})`}><Tbl cols={['Nombre', 'Número', 'Correo', 'Vendedor', 'Estado']} rows={(tv || []).map((t: any) => [t.nombre, t.telefono, t.correo, t.vendedores?.nombre,
       <form key="a" action={alternar}><input type="hidden" name="tabla" value="televentas" /><input type="hidden" name="id" value={t.id} /><input type="hidden" name="activo" value={String(t.activo)} />
         <button className={`text-xs px-2 py-1 rounded border ${t.activo ? 'bg-white' : 'bg-slate-200 text-slate-400'}`}>{t.activo ? 'Activa' : 'Inactiva'}</button></form>])} /></Box>
@@ -112,6 +116,7 @@ export default async function Admin({ searchParams }: { searchParams: Promise<an
       <I n="teams_url" l="Dirección (URL) del webhook de Teams" def={A.teams_url} /><I n="app_url" l="Dirección de la app, para el enlace del mensaje (ej. https://su-app.vercel.app)" def={A.app_url} />
       <fieldset className="text-sm"><legend className="mb-1">Enviar a Teams estos avisos:</legend><div className="grid sm:grid-cols-2 gap-1">{TIPOS_AVISO.map(([k, l]) =>
         <label key={k} className="flex gap-2 items-center"><input type="checkbox" name="tipos" value={k} defaultChecked={sel.includes(k)} /> {l}</label>)}</div></fieldset><B>Guardar configuración de Teams</B></form>
-      <form action={probarTeams} className="mt-3"><button className="btn bg-white !text-belca-navy border border-belca-navy">Enviar mensaje de prueba a Teams</button></form></Box>
+      <form action={probarTeams} className="mt-3"><button className="btn bg-white !text-belca-navy border border-belca-navy">Enviar mensaje de prueba a Teams</button></form>
+      <form action={enviarResumen} className="mt-2"><button className="btn bg-white !text-belca-navy border border-belca-navy">Enviar resumen semanal ahora</button><span className="text-xs text-slate-500 ml-2">Se envía solo cada lunes a las 7:00 a.m. si ejecutó el archivo 010.</span></form></Box>
     <Box title="Umbrales de alertas"><form action={config} className="grid sm:grid-cols-3 gap-3">{(cf || []).map((c: any) => <I key={c.clave} n={`c_${c.clave}`} l={ETQ[c.clave] || c.clave} type="number" def={c.valor} />)}<div className="sm:col-span-3"><B>Guardar umbrales</B></div></form></Box></div>
 }

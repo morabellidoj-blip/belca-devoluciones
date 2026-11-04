@@ -16,14 +16,15 @@ export async function cargar(sb: any, sp0: any) {
   if (sp.desde && sp.hasta) { const len = Math.round((+dd(sp.hasta) - +dd(sp.desde)) / 864e5) + 1; prev = { desde: addD(sp.desde, -len), hasta: addD(sp.desde, -1) } }
   const filt = (q: any) => { if (sp.cliente_id) q = filtroCliente(q, sp.cliente_id); for (const k of ['estado', 'gestor_id', 'area']) if (sp[k]) q = q.eq(k, sp[k]); return q }
   const conCli = sp.cliente_id && sp.cliente_id !== 'ninguno'
-  const [c, pc, rec, prec, can, viejos] = await Promise.all([
+  const [c, pc, rec, prec, can, viejos, cfg] = await Promise.all([
     all(filt(rango(sb.from('casos').select('id,numero,fecha,estado,monto,cantidad,producto,factura,chofer,critico,area,cliente_id,created_at,fecha_cierre,televenta_id,clientes(codigo,nombre),vendedores(nombre),televentas(nombre),rutas(nombre),motivos_devolucion(codigo,nombre,area)'), 'fecha', sp))),
     prev ? all(filt(rango(sb.from('casos').select('estado,monto'), 'fecha', prev))) : Promise.resolve({ data: null }),
     all(rangoTs(sb.from('recuperaciones').select('monto_perdida,monto_recuperado,created_at,tipo,clientes(codigo,nombre),casos(numero)'), 'created_at', sp)),
     prev ? all(rangoTs(sb.from('recuperaciones').select('monto_recuperado'), 'created_at', prev)) : Promise.resolve({ data: null }),
     all((conCli ? (q: any) => q.eq('cliente_id', sp.cliente_id) : (q: any) => q)(rango(sb.from('canastas').select('fecha,chofer,entregada,recuperada,pendiente,estado,clientes(codigo,nombre),rutas(nombre)'), 'fecha', sp))),
-    sb.from('casos').select('id,numero,created_at,estado,clientes(codigo,nombre),motivos_devolucion(codigo,nombre)').not('estado', 'in', '(resuelto,cerrado)').order('created_at').limit(8)])
-  return { sp, todo, H0, prev, R: c.data || [], P: pc.data || [], rec: rec.data || [], prec: prec.data || [], K: can.data || [], viejos: viejos.data || [] }
+    sb.from('casos').select('id,numero,created_at,estado,clientes(codigo,nombre),motivos_devolucion(codigo,nombre)').not('estado', 'in', '(resuelto,cerrado)').order('created_at').limit(8),
+    sb.from('config').select('valor').eq('clave', 'meta_efectividad').maybeSingle()])
+  return { meta: Number(cfg?.data?.valor) || 80, sp, todo, H0, prev, R: c.data || [], P: pc.data || [], rec: rec.data || [], prec: prec.data || [], K: can.data || [], viejos: viejos.data || [] }
 }
 export function resumen(rows: any[], key: (r: any) => any) {
   const m = new Map<string, { name: string; casos: number; valor: number }>()
@@ -31,6 +32,7 @@ export function resumen(rows: any[], key: (r: any) => any) {
   return Array.from(m.values()).sort((a, b) => b.valor - a.valor || b.casos - a.casos)
 }
 export function calcular(d: any) {
+  const META = Number(d.meta) || 80
   const { R, P, K, rec, prec, viejos, todo, sp, H0 } = d
   const total = R.length, cerr = R.filter((r: any) => r.estado === 'cerrado').length
   const abiertos = R.filter((r: any) => !['resuelto', 'cerrado'].includes(r.estado)).length
@@ -64,6 +66,13 @@ export function calcular(d: any) {
   const k80 = valor ? pareto.findIndex(x => x.acum >= 80) + 1 : 0
   const porInvestigar = R.filter((r: any) => A(r) === 'investigar' && !['resuelto', 'cerrado'].includes(r.estado)).sort((a: any, b: any) => a.created_at.localeCompare(b.created_at))
   const imputables = R.filter((r: any) => A(r) === 'ventas').length
+  const INTERNAS = ['ventas', 'logistica', 'almacen', 'calidad']
+  const evit = R.filter((r: any) => INTERNAS.includes(A(r))), valEvit = sum(evit, 'monto'), valCliente = porArea.find(x => x.key === 'cliente')?.valor || 0
+  const dPer = sp.desde && sp.hasta ? Math.round((+dd(sp.hasta) - +dd(sp.desde)) / 864e5) + 1 : 0
+  const proyMensual = dPer ? Math.round(valEvit * 30 / dPer) : null
+  const em = new Map<string, { name: string; area: string; casos: number; valor: number }>()
+  evit.forEach((r: any) => { const k = motLabel(r.motivos_devolucion) || 'Sin motivo'; const x = em.get(k) || { name: k, area: A(r), casos: 0, valor: 0 }; x.casos++; x.valor += Number(r.monto || 0); em.set(k, x) })
+  const topEvit = Array.from(em.values()).sort((a, b) => b.valor - a.valor || b.casos - a.casos).slice(0, 5)
   const dV = delta(valor, pValor), diasViejo = viejos[0] ? Math.floor((Date.now() - +new Date(viejos[0].created_at)) / 864e5) : 0
   const m1 = top(gM, 1)[0], c1 = top(gC, 1)[0]
   const insights: string[] = []
@@ -71,6 +80,7 @@ export function calcular(d: any) {
     insights.push(`Se recibieron **${fmt(total)}** casos por un valor de **${fmt(valor)}**${dV != null ? ` (${dV > 0 ? '+' : ''}${dV}% frente al período anterior)` : ''}.`)
     if (m1 && valor) insights.push(`El motivo de mayor valor es **${m1.name}**: concentra el **${pct(m1.value, valor)}%** de lo devuelto.`)
     if (c1 && valor) insights.push(`${c1.name === 'Sin asignar' ? 'Los casos **sin cliente asignado**' : `El cliente con más valor devuelto es **${c1.name}**`} suman ${fmt(c1.value)} (${pct(c1.value, valor)}% del total).`)
+    if (valEvit && valor) insights.push(`El **${pct(valEvit, valor)}%** del valor devuelto (${fmt(valEvit)}) viene de causas internas evitables (ventas, logística, almacén y calidad)${proyMensual ? `; a este ritmo serían unos **${fmt(proyMensual)}** al mes` : ''}.`)
     const partes = porArea.filter(x => x.casos).sort((a, b) => b.casos - a.casos).map(x => `${x.label} ${pct(x.casos, total)}%`)
     if (partes.length) insights.push(`Por área responsable: ${partes.join(', ')}.`)
     const v1 = vResp[0]; if (v1 && v1.imp) insights.push(`El vendedor con más casos **imputables a ventas** es **${v1.name}** (${v1.imp} de sus ${v1.casos}); el resto de sus casos no depende de la venta.`)
@@ -82,6 +92,6 @@ export function calcular(d: any) {
     if (perd) insights.push(`De lo registrado como pérdida se ha recuperado el **${pct(recup, perd)}%** (${fmt(recup)} de ${fmt(perd)}).`)
   }
   if (kEnt) insights.push(`Canastas: se ha recuperado el **${pct(kRec, kEnt)}%** de las entregadas y quedan **${fmt(kPend)}** pendientes.`)
-  return { ...d, H0, total, cerr, abiertos, pend, gestionadas, hrs, valor, pValor, recup, perd, pRecup, efect, pTotal, pEfect, kEnt, kRec, kPend, kPerd, cierre, gM, gC, gV, gT, periodo, dV, diasViejo, insights, porArea, vResp, tResp, cFrec, reincidentes, pareto, k80, porInvestigar, imputables }
+  return { ...d, H0, total, cerr, abiertos, pend, gestionadas, hrs, valor, pValor, recup, perd, pRecup, efect, pTotal, pEfect, kEnt, kRec, kPend, kPerd, cierre, gM, gC, gV, gT, periodo, dV, diasViejo, insights, porArea, vResp, tResp, cFrec, reincidentes, pareto, k80, porInvestigar, imputables, meta: META, valEvit, valCliente, proyMensual, topEvit }
 }
 export type M = ReturnType<typeof calcular>

@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { ctx, cat } from '@/lib/data'
-import { cargar, calcular, delta, META } from '@/lib/metricas'
+import { cargar, calcular, delta } from '@/lib/metricas'
 import { Chart } from '@/lib/chart'
 import { PrintButton } from '@/lib/print'
 import { AREAS, AREAS_CORTO } from '@/lib/areas'
@@ -14,9 +14,10 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   await sb.rpc('generar_alertas')
   const [datos, c, { data: gest }] = await Promise.all([cargar(sb, sp0), cat(sb), sb.from('profiles').select('id,nombre').eq('activo', true)])
   const m = calcular(datos)
-  const { sp, todo, R, K, rec, viejos, H0, total, cerr, abiertos, pend, gestionadas, hrs, valor, pValor, recup, perd, pRecup, efect, pTotal, pEfect, kEnt, kRec, kPend, kPerd, cierre, periodo, insights, porArea, vResp, tResp, cFrec, reincidentes, pareto, porInvestigar, imputables } = m
+  const { sp, todo, R, K, rec, viejos, H0, total, cerr, abiertos, pend, gestionadas, hrs, valor, pValor, recup, perd, pRecup, efect, pTotal, pEfect, kEnt, kRec, kPend, kPerd, cierre, periodo, insights, porArea, vResp, tResp, cFrec, reincidentes, pareto, porInvestigar, imputables, meta, valEvit, valCliente, proyMensual, topEvit } = m
   const qs = new URLSearchParams(); if (todo) qs.set('todo', '1'); else { if (sp.desde) qs.set('desde', sp.desde); if (sp.hasta) qs.set('hasta', sp.hasta) }
   for (const k of ['cliente_id', 'estado', 'gestor_id', 'area']) if (sp[k]) qs.set(k, sp[k])
+  const linkArea = (k: string) => { const u = new URLSearchParams(qs); u.delete('gestor_id'); u.delete('todo'); u.set('area', k); return `/casos?${u}` }
   const bt = 'no-print text-sm rounded-lg border border-belca-navy text-belca-navy px-3 py-1.5 font-semibold hover:bg-slate-50'
   const dias = (iso: string) => Math.floor((Date.now() - +new Date(iso)) / 864e5)
   const tablaResp = (items: any[]) => <Tbl cols={['Nombre', 'Casos totales', 'Imputables a ventas', 'Valor imputable']} rows={items.filter(x => x.imp > 0).slice(0, 8).map(x => [x.name, x.casos, <b key="i">{x.imp}</b>, fmt(x.valorImp)])} />
@@ -31,16 +32,25 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
     <H>Resumen ejecutivo</H>
     <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-3">
       <Kpi hero t="Valor devuelto" v={fmt(valor)} delta={delta(valor, pValor)} sub={`${fmt(total)} casos`} />
-      <Kpi hero t="Efectividad de cierre" v={`${efect}%`} tone={!total ? undefined : efect >= META ? 'ok' : efect >= 60 ? 'warn' : 'bad'} delta={pTotal ? Math.round((efect - pEfect) * 10) / 10 : null} unit=" pp" good="up" sub={`${cerr} de ${total} cerrados · meta ${META}%`} />
+      <Kpi hero t="Efectividad de cierre" v={`${efect}%`} tone={!total ? undefined : efect >= meta ? 'ok' : efect >= 60 ? 'warn' : 'bad'} delta={pTotal ? Math.round((efect - pEfect) * 10) / 10 : null} unit=" pp" good="up" sub={`${cerr} de ${total} cerrados · meta ${meta}%`} />
       <Kpi hero t="Monto recuperado" v={fmt(recup)} delta={delta(recup, pRecup)} good="up" sub={`de ${fmt(perd)} en pérdidas`} />
       <Kpi hero t="% Recuperación económica" v={`${pct(recup, perd)}%`} sub={`No recuperado ${fmt(perd - recup)}`} /></div>
     {!!insights.length && <Box title="Lectura rápida" cls="mt-4"><ul className="space-y-1.5 text-sm text-slate-700 list-disc pl-5">{insights.map((x: string, i: number) => <li key={i}>{md(x)}</li>)}</ul></Box>}
 
     <H>Diagnóstico: ¿de dónde vienen las devoluciones?</H>
     <Grid>
-      <Box title="Por área responsable (valor devuelto)"><Rank items={porArea.filter((x: any) => x.casos).sort((a: any, b: any) => b.valor - a.valor).map((x: any) => ({ name: `${x.label} · ${x.casos} casos`, value: x.valor }))} total={valor} />
+      <Box title="Por área responsable (valor devuelto)"><Rank items={porArea.filter((x: any) => x.casos).sort((a: any, b: any) => b.valor - a.valor).map((x: any) => ({ name: `${x.label} · ${x.casos} casos`, value: x.valor, href: linkArea(x.key) }))} total={valor} />
         <Nota>El área se define por el motivo (ajustable en Administración) y puede corregirse caso por caso al concluir una investigación.</Nota></Box>
       <Box title="Motivos principales (Pareto)"><Tbl cols={['Motivo', 'Área', 'Casos', 'Valor', '% acum.']} rows={pareto.slice(0, 8).map((x: any) => [x.name, <Badge key="a">{AREAS_CORTO[x.area]}</Badge>, x.casos, fmt(x.valor), `${x.acum}%`])} /></Box></Grid>
+
+    <H>Oportunidad de mejora</H>
+    <Kpis>
+      <Kpi t="Valor evitable (causas internas)" v={fmt(valEvit)} sub={valor ? `${pct(valEvit, valor)}% del valor devuelto` : undefined} />
+      <Kpi t="Proyección mensual evitable" v={proyMensual != null ? fmt(proyMensual) : '—'} sub="si se mantiene el ritmo del período" />
+      <Kpi t="Si se redujera a la mitad" v={proyMensual != null ? fmt(proyMensual / 2) : '—'} sub="ahorro mensual estimado" />
+      <Kpi t="Causadas por el cliente" v={fmt(valCliente)} sub={valor ? `${pct(valCliente, valor)}% del valor devuelto` : undefined} /></Kpis>
+    <Box title="Motivos internos que más pesan (donde se puede mejorar)"><Tbl cols={['Motivo', 'Área', 'Casos', 'Valor', '% del evitable']} rows={topEvit.map((x: any) => [x.name, <Badge key="a">{AREAS_CORTO[x.area]}</Badge>, x.casos, fmt(x.valor), `${pct(x.valor, valEvit)}%`])} />
+      <Nota>Causas internas = ventas, logística, almacén y calidad. Atacar estos motivos es lo que más reduce las pérdidas; las causas del cliente no se pueden corregir desde adentro.</Nota></Box>
 
     <H>Responsabilidad de ventas</H>
     <Grid>

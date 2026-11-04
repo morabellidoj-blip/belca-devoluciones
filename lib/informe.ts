@@ -13,6 +13,7 @@ export const pngSize = (b: Buffer) => ({ w: b.readUInt32BE(16), h: b.readUInt32B
 
 /* ============================== EXCEL ============================== */
 export async function construirXlsx(m: M, logo: Buffer | null, abiertos: any[]): Promise<Buffer> {
+  const META = m.meta
   const wb = new ExcelJS.Workbook(); wb.creator = 'Belca Foodservice'; wb.created = new Date()
   const fill = (argb: string): ExcelJS.Fill => ({ type: 'pattern', pattern: 'solid', fgColor: { argb } })
   const banda = (ws: ExcelJS.Worksheet, titulo: string, cols: number) => {
@@ -66,6 +67,7 @@ export async function construirXlsx(m: M, logo: Buffer | null, abiertos: any[]):
   rp.getCell(fr - 1, 1).value = 'Solo cuentan los casos cuya área responsable es Ventas; los de almacén, transporte, calidad o cliente no se atribuyen al vendedor.'; rp.getCell(fr - 1, 1).font = { italic: true, color: { argb: 'FF64748B' } }; fr += 1
   bloq('Clientes con más frecuencia (top 25)', ['Cliente', 'Casos', 'Valor', 'Por causa del cliente', 'Último caso', 'Reincidente'], m.cFrec.slice(0, 25).map((x: any) => [x.name, x.casos, x.valor, x.porCliente, x.ultima, x.casos >= 3 ? 'Sí' : '']), [undefined, n0, n0, n0])
   bloq('Motivos principales (Pareto)', ['Motivo', 'Área', 'Casos', 'Valor', '% acumulado'], m.pareto.slice(0, 15).map((x: any) => [x.name, AREAS_CORTO[x.area], x.casos, x.valor, x.acum / 100]), [undefined, undefined, n0, n0, '0.0%'])
+  bloq('Oportunidad de mejora: motivos internos que más pesan', ['Motivo', 'Área', 'Casos', 'Valor', '% del valor evitable'], m.topEvit.map((x: any) => [x.name, AREAS_CORTO[x.area], x.casos, x.valor, m.valEvit ? x.valor / m.valEvit : 0]), [undefined, undefined, n0, n0, '0.0%'])
   bloq('Casos abiertos por investigar', ['Caso', 'Fecha', 'Cliente', 'Motivo', 'Días abiertos', 'Valor'], m.porInvestigar.slice(0, 40).map((r: any) => [r.numero, r.fecha, cliTxt(r.clientes), motLabel(r.motivos_devolucion), Math.floor((Date.now() - +new Date(r.created_at)) / 864e5), Number(r.monto || 0)]), [undefined, undefined, undefined, undefined, n0, n0])
 
   // ---- Rankings (con porcentaje en fórmula y barra visual)
@@ -131,6 +133,7 @@ export async function construirXlsx(m: M, logo: Buffer | null, abiertos: any[]):
 
 /* ================================ PDF ================================ */
 export function construirPdf(m: M, logo: Buffer | null, abiertos: any[]): ArrayBuffer {
+  const META = m.meta
   const doc = new jsPDF({ unit: 'mm', format: 'a4' }), W = 210, MG = 14, AN = W - 2 * MG
   const NV: [number, number, number] = [11, 30, 56], OR: [number, number, number] = [243, 156, 31], GR: [number, number, number] = [100, 116, 139]
   const corta = (s: string, n: number) => (s.length > n ? s.slice(0, n - 1).trimEnd() + '…' : s)
@@ -193,6 +196,7 @@ export function construirPdf(m: M, logo: Buffer | null, abiertos: any[]): ArrayB
   tb('Responsabilidad de ventas: vendedores (solo casos imputables a ventas)', ['Vendedor', 'Casos totales', 'Imputables', 'Valor imputable'], imp(m.vResp), R3)
   if (m.tResp.some((x: any) => x.imp > 0)) tb('Responsabilidad de ventas: televentas', ['Televenta', 'Casos totales', 'Imputables', 'Valor imputable'], imp(m.tResp), R3)
   tb('Clientes con más frecuencia', ['Cliente', 'Casos', 'Valor', 'Por causa del cliente', 'Último caso'], m.cFrec.slice(0, 8).map((x: any) => [corta(x.name, 42) + (x.casos >= 3 ? '  (reincidente)' : ''), x.casos, sp(x.valor), x.porCliente, x.ultima]), { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' } })
+  if (m.topEvit.length) tb('Oportunidad de mejora: motivos internos que más pesan (evitables)', ['Motivo', 'Área', 'Casos', 'Valor'], m.topEvit.map((x: any) => [corta(x.name, 46), AREAS_CORTO[x.area], x.casos, sp(x.valor)]), { 2: { halign: 'right' }, 3: { halign: 'right' } })
   if (m.porInvestigar.length) tb('Casos abiertos por investigar', ['Caso', 'Cliente', 'Motivo', 'Días'], m.porInvestigar.slice(0, 8).map((r: any) => [r.numero, corta(cliTxt(r.clientes), 30), corta(motLabel(r.motivos_devolucion), 40), Math.floor((Date.now() - +new Date(r.created_at)) / 864e5)]), { 3: { halign: 'right' } })
   tb('Casos abiertos con más antigüedad', ['Caso', 'Cliente', 'Motivo', 'Estado', 'Días'], abiertos.slice(0, 10).map((r: any) => [r.numero, corta(cliTxt(r?.clientes), 28), corta(motLabel(r.motivos_devolucion), 34), ESTADOS[r.estado], Math.floor((Date.now() - +new Date(r.created_at)) / 864e5)]), { 4: { halign: 'right' } })
   const rutas = (() => { const e = grp(m.K, (r: any) => r.rutas?.nombre, (r: any) => r.entregada), re = grp(m.K, (r: any) => r.rutas?.nombre, (r: any) => r.recuperada); return e.map(x => { const rc = re.find(z => z.name === x.name)?.value || 0; return [x.name, sp(x.value), sp(rc), `${pct(rc, x.value)}%`, sp(x.value - rc)] }) })()

@@ -28,7 +28,7 @@ export default async function Nuevo() {
     <Combo name="ruta_id" label="Ruta" nuevo={NRUT} options={c.rutas.map((x: any) => [x.id, x.nombre])} />
     <Combo name="chofer" label="Chofer" nuevo={NCHO} options={c.choferes.map((x: any) => [x.nombre, x.nombre])} />
     <I n="factura" l="Factura" /><I n="producto" l="Producto" />
-    <I n="cantidad" l="Cantidad" type="number" /><I n="monto" l="Monto" type="number" />
+    <I n="cantidad" l="Cantidad" type="number" /><I n="monto" l="Monto (escriba 0 si no tiene valor, p. ej. un sobrante)" type="number" req />
     <MotivoArea nMot={NMOT} motivos={c.motivos.map((x: any) => ({ id: x.id, label: motLabel(x), area: x.area }))} />
     <S n="estado" l="Estado" def="nuevo" o={[['nuevo', 'Nuevo'], ['en_proceso', 'En proceso'], ['pendiente_cliente', 'Pendiente cliente'], ['pendiente_logistica', 'Pendiente logística']]} />
     <label className="flex items-center gap-2 text-sm sm:mt-7"><input type="checkbox" name="critico" /> Incidencia crítica</label>

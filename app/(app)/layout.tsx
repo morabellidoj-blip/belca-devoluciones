@@ -3,7 +3,7 @@ import { Avisos } from '@/lib/avisos'
 import { redirect } from 'next/navigation'
 import { ctx } from '@/lib/data'
 import { supabaseServer } from '@/lib/supabase/server'
-const nav = [['dashboard', 'Dashboard'], ['casos', 'Casos'], ['canastas', 'Canastas'], ['recuperacion', 'Recuperación'], ['desempeno', 'Desempeño'], ['reportes', 'Reportes']]
+const nav = [['dashboard', 'Dashboard'], ['casos', 'Casos'], ['canastas', 'Canastas'], ['recuperacion', 'Recuperación'], ['desempeno', 'Desempeño'], ['reportes', 'Reportes'], ['calidad', 'Calidad de datos'], ['ayuda', 'Ayuda']]
 async function salir() { 'use server'; const sb = await supabaseServer(); await sb.auth.signOut(); redirect('/login') }
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const { sb, p, admin } = await ctx()

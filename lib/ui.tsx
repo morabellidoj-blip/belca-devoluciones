@@ -36,10 +36,10 @@ export const Kpi = ({ t, v, sub, delta, good, hero, unit = '%', tone }: { t: str
       {sub && <span className={hero ? 'text-white/60' : 'text-slate-400'}>{sub}</span>}</p>}
   </div>
 }
-export const Rank = ({ items, total }: { items: { name: string; value: number }[]; total: number }) => {
+export const Rank = ({ items, total }: { items: { name: string; value: number; href?: string }[]; total: number }) => {
   const max = Math.max(...items.map(x => x.value), 1)
   return <ol className="space-y-2.5">{items.map((x, i) => <li key={x.name}>
-    <div className="flex justify-between gap-3 text-sm"><span className="truncate"><b className="text-slate-400 mr-1.5">{i + 1}</b>{x.name}</span>
+    <div className="flex justify-between gap-3 text-sm"><span className="truncate"><b className="text-slate-400 mr-1.5">{i + 1}</b>{x.href ? <Link href={x.href} className="underline decoration-dotted hover:text-belca-navy">{x.name}</Link> : x.name}</span>
       <span className="whitespace-nowrap font-medium">{fmt(x.value)} <span className="text-slate-400 font-normal">· {pct(x.value, total)}%</span></span></div>
     <div className="h-1.5 rounded bg-slate-100 mt-1"><div className="h-1.5 rounded bg-belca-navy" style={{ width: `${(100 * x.value) / max}%` }} /></div></li>)}
     {!items.length && <p className="text-sm text-slate-400">Sin datos</p>}</ol>
@@ -63,12 +63,13 @@ export const Tbl = ({ cols, rows }: { cols: string[]; rows: any[][] }) =>
       {!rows.length && <tr><td className="p-4 text-slate-400" colSpan={cols.length}>Sin registros</td></tr>}</tbody></table></div>
 export const Badge = ({ children }: { children: React.ReactNode }) => <span className="px-2 py-0.5 rounded bg-slate-100 text-xs whitespace-nowrap">{children}</span>
 
-export function Filtros({ base, sp, cat, estados, gestores, todo, sinAsignar, areas }: { base: string; sp: any; cat: any; estados?: boolean; gestores?: any[]; todo?: boolean; sinAsignar?: boolean; areas?: boolean }) {
+export function Filtros({ base, sp, cat, estados, gestores, todo, sinAsignar, areas, buscar }: { base: string; sp: any; cat: any; estados?: boolean; gestores?: any[]; todo?: boolean; sinAsignar?: boolean; areas?: boolean; buscar?: boolean }) {
   const h = hoy()
   return <form className="no-print bg-white rounded-xl p-3 mb-5 flex flex-wrap gap-3 items-end">
     <I n="desde" l="Desde" type="date" def={sp.desde} /><I n="hasta" l="Hasta" type="date" def={sp.hasta} />
     {cat && <Combo name="cliente_id" label="Cliente" def={sp.cliente_id} cls="w-64" vacio={sinAsignar ? 'Sin asignar' : undefined} vacioValor="ninguno" options={cat.clientes.map((x: any) => [x.id, cliLabel(x)])} />}
     {estados && <S n="estado" l="Estado" def={sp.estado} o={Object.entries(ESTADOS)} />}
+    {buscar && <I n="q" l="Buscar (caso, factura, producto, chofer…)" def={sp.q} cls="w-64" />}
     {areas && <S n="area" l="Área responsable" def={sp.area} o={Object.entries(AREAS_CORTO)} />}
     {gestores && <S n="gestor_id" l="Gestor" def={sp.gestor_id} o={opts(gestores, (g: any) => g.nombre)} />}
     <B>Filtrar</B>
