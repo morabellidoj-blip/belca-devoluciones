@@ -10,6 +10,12 @@ export default function Ayuda() {
     <Box title="Áreas responsables">
       <p className="text-sm text-slate-600 mb-2">Cada devolución se atribuye a un área según su motivo. Así, un sobrante o un producto vencido no se le cuenta al vendedor.</p>
       {Object.entries(AREAS).map(([k, v]) => <Fila key={k} t={v} d={{ ventas: 'Errores de facturación, digitación, precio o pedido. Es la única área que cuenta contra vendedores y televentas.', logistica: 'Problemas de transporte y entrega.', almacen: 'Faltantes, sobrantes y errores de despacho o picking.', calidad: 'Producto vencido, mal etiquetado o con diferencias de peso.', cliente: 'Negocio cerrado, sin dinero, rechazo u otros motivos del cliente.', investigar: 'Aún no se sabe. Al concluir la investigación, cambie el área en el caso.' }[k] as string} />)}</Box>
+    <Box title="Checks de error: ¿quién se equivocó?">
+      <p className="text-sm text-slate-600 mb-2">Al registrar un caso se marcan las casillas de <b>error del cliente, de ventas, de televentas o del chofer</b>. Se sugieren según el área, y se pueden cambiar. Si el error fue de almacén o calidad, se dejan sin marcar.</p>
+      <Fila t="Casos de una persona" d="Todas las devoluciones asociadas a ese vendedor, televenta, chofer o cliente: mide quién envía más casos." />
+      <Fila t="Errores de una persona" d="Las que se marcaron como error suyo: mide quién se equivoca más. El % de error es sobre sus propios casos." />
+      <Fila t="Choferes: reportes e incidencias" d="El chofer suele ser quien llama para reportar. Sus “reportes” son todos los casos registrados con él, sea cual sea la causa; sus “incidencias propias” son solo los marcados como error del chofer. La tabla de choferes muestra cuántos reportes fueron por vendedor, cliente, televentas o error suyo." />
+      <Fila t="Importante" d="Para que un error cuente a alguien, el caso debe tener asignada esa persona. La pantalla Calidad de datos lista los errores marcados sin persona." /></Box>
     <Box title="Cómo se calculan los indicadores">
       <Fila t="Valor devuelto" d="Suma del monto de los casos del período. Los sobrantes sin factura suman 0." />
       <Fila t="Efectividad de cierre" d="(Casos cerrados ÷ casos recibidos) × 100. Se compara con la meta, que el administrador define en Administración." />

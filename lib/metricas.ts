@@ -17,7 +17,7 @@ export async function cargar(sb: any, sp0: any) {
   const filt = (q: any) => { if (sp.cliente_id) q = filtroCliente(q, sp.cliente_id); for (const k of ['estado', 'gestor_id', 'area']) if (sp[k]) q = q.eq(k, sp[k]); return q }
   const conCli = sp.cliente_id && sp.cliente_id !== 'ninguno'
   const [c, pc, rec, prec, can, viejos, cfg] = await Promise.all([
-    all(filt(rango(sb.from('casos').select('id,numero,fecha,estado,monto,cantidad,producto,factura,chofer,critico,area,cliente_id,created_at,fecha_cierre,televenta_id,clientes(codigo,nombre),vendedores(nombre),televentas(nombre),rutas(nombre),motivos_devolucion(codigo,nombre,area)'), 'fecha', sp))),
+    all(filt(rango(sb.from('casos').select('id,numero,fecha,estado,monto,cantidad,producto,factura,chofer,critico,area,cliente_id,vendedor_id,error_cliente,error_ventas,error_televentas,error_chofer,created_at,fecha_cierre,televenta_id,clientes(codigo,nombre),vendedores(nombre),televentas(nombre),rutas(nombre),motivos_devolucion(codigo,nombre,area)'), 'fecha', sp))),
     prev ? all(filt(rango(sb.from('casos').select('estado,monto'), 'fecha', prev))) : Promise.resolve({ data: null }),
     all(rangoTs(sb.from('recuperaciones').select('monto_perdida,monto_recuperado,created_at,tipo,clientes(codigo,nombre),casos(numero)'), 'created_at', sp)),
     prev ? all(rangoTs(sb.from('recuperaciones').select('monto_recuperado'), 'created_at', prev)) : Promise.resolve({ data: null }),
@@ -73,6 +73,33 @@ export function calcular(d: any) {
   const em = new Map<string, { name: string; area: string; casos: number; valor: number }>()
   evit.forEach((r: any) => { const k = motLabel(r.motivos_devolucion) || 'Sin motivo'; const x = em.get(k) || { name: k, area: A(r), casos: 0, valor: 0 }; x.casos++; x.valor += Number(r.monto || 0); em.set(k, x) })
   const topEvit = Array.from(em.values()).sort((a, b) => b.valor - a.valor || b.casos - a.casos).slice(0, 5)
+  // ---- Responsables: volumen de casos y errores marcados (exacto, por persona)
+  const kch = new Map<string, { ent: number; rec: number }>()
+  K.forEach((r: any) => { const k = String(r.chofer || '').trim(); if (!k) return; const x = kch.get(k) || { ent: 0, rec: 0 }; x.ent += Number(r.entregada || 0); x.rec += Number(r.recuperada || 0); kch.set(k, x) })
+  const actor = (kf: (r: any) => any, flag: string) => { const mp = new Map<string, { name: string; casos: number; errores: number; valor: number; valorErr: number }>()
+    R.forEach((r: any) => { const n = kf(r); if (!n) return; const x = mp.get(n) || { name: n, casos: 0, errores: 0, valor: 0, valorErr: 0 }; x.casos++; x.valor += Number(r.monto || 0); if (r[flag]) { x.errores++; x.valorErr += Number(r.monto || 0) }; mp.set(n, x) })
+    return Array.from(mp.values()).map(x => ({ ...x, pctErr: pct(x.errores, x.casos) })) }
+  const actores = {
+    vend: actor((r: any) => r.vendedores?.nombre, 'error_ventas'), tele: actor((r: any) => r.televentas?.nombre, 'error_televentas'),
+    cho: actor((r: any) => String(r.chofer || '').trim(), 'error_chofer').map(x => ({ ...x, ent: kch.get(x.name)?.ent || 0, pctRec: pct(kch.get(x.name)?.rec || 0, kch.get(x.name)?.ent || 0) })),
+    cli: actor((r: any) => (r.cliente_id ? cliTxt(r.clientes) : null), 'error_cliente') }
+  const FL = ['error_cliente', 'error_ventas', 'error_televentas', 'error_chofer']
+  const errTot = { cliente: R.filter((r: any) => r.error_cliente).length, ventas: R.filter((r: any) => r.error_ventas).length, televentas: R.filter((r: any) => r.error_televentas).length, chofer: R.filter((r: any) => r.error_chofer).length }
+  const sinAtribuir = { cliente: R.filter((r: any) => r.error_cliente && !r.cliente_id).length, ventas: R.filter((r: any) => r.error_ventas && !r.vendedor_id).length, televentas: R.filter((r: any) => r.error_televentas && !r.televenta_id).length, chofer: R.filter((r: any) => r.error_chofer && !String(r.chofer || '').trim()).length }
+  const cls: string[][] = R.map((r: any) => FL.filter(f => r[f]))
+  const distrib = [{ label: 'Error de ventas', value: cls.filter(c => c.length === 1 && c[0] === 'error_ventas').length, color: '#2563eb' }, { label: 'Error de televentas', value: cls.filter(c => c.length === 1 && c[0] === 'error_televentas').length, color: '#7c3aed' },
+    { label: 'Error del chofer', value: cls.filter(c => c.length === 1 && c[0] === 'error_chofer').length, color: '#0d9488' }, { label: 'Error del cliente', value: cls.filter(c => c.length === 1 && c[0] === 'error_cliente').length, color: '#d97706' },
+    { label: 'Más de uno', value: cls.filter(c => c.length > 1).length, color: '#dc2626' }, { label: 'Sin error de personas', value: cls.filter(c => c.length === 0).length, color: '#cbd5e1' }]
+  // ---- Choferes: qué reportan (causa) y cuántas incidencias son error propio
+  type Ch = { name: string; reportes: number; propio: number; porVend: number; porCli: number; porTele: number; sinPersona: number; valor: number; valorPropio: number; ex: { chofer: number; ventas: number; cliente: number; televentas: number; varios: number; ninguno: number } }
+  const chMap = new Map<string, Ch>()
+  R.forEach((r: any) => { const n = String(r.chofer || '').trim(); if (!n) return
+    const x = chMap.get(n) || { name: n, reportes: 0, propio: 0, porVend: 0, porCli: 0, porTele: 0, sinPersona: 0, valor: 0, valorPropio: 0, ex: { chofer: 0, ventas: 0, cliente: 0, televentas: 0, varios: 0, ninguno: 0 } }
+    const mt = Number(r.monto || 0), fl = FL.filter(f => r[f]); x.reportes++; x.valor += mt
+    if (r.error_chofer) { x.propio++; x.valorPropio += mt }; if (r.error_ventas) x.porVend++; if (r.error_cliente) x.porCli++; if (r.error_televentas) x.porTele++
+    if (!fl.length) { x.sinPersona++; x.ex.ninguno++ } else if (fl.length > 1) x.ex.varios++; else if (fl[0] === 'error_chofer') x.ex.chofer++; else if (fl[0] === 'error_ventas') x.ex.ventas++; else if (fl[0] === 'error_cliente') x.ex.cliente++; else x.ex.televentas++
+    chMap.set(n, x) })
+  const choferesDet = Array.from(chMap.values()).map(x => ({ ...x, pctPropio: pct(x.propio, x.reportes), ent: kch.get(x.name)?.ent || 0, pctRec: pct(kch.get(x.name)?.rec || 0, kch.get(x.name)?.ent || 0) })).sort((a, b) => b.reportes - a.reportes || b.propio - a.propio)
   const dV = delta(valor, pValor), diasViejo = viejos[0] ? Math.floor((Date.now() - +new Date(viejos[0].created_at)) / 864e5) : 0
   const m1 = top(gM, 1)[0], c1 = top(gC, 1)[0]
   const insights: string[] = []
@@ -83,7 +110,15 @@ export function calcular(d: any) {
     if (valEvit && valor) insights.push(`El **${pct(valEvit, valor)}%** del valor devuelto (${fmt(valEvit)}) viene de causas internas evitables (ventas, logística, almacén y calidad)${proyMensual ? `; a este ritmo serían unos **${fmt(proyMensual)}** al mes` : ''}.`)
     const partes = porArea.filter(x => x.casos).sort((a, b) => b.casos - a.casos).map(x => `${x.label} ${pct(x.casos, total)}%`)
     if (partes.length) insights.push(`Por área responsable: ${partes.join(', ')}.`)
-    const v1 = vResp[0]; if (v1 && v1.imp) insights.push(`El vendedor con más casos **imputables a ventas** es **${v1.name}** (${v1.imp} de sus ${v1.casos}); el resto de sus casos no depende de la venta.`)
+    const mx = (a: any[], k: string) => [...a].sort((x, y) => y[k] - x[k] || y.casos - x.casos)[0]
+    const vol = [['vendedor', mx(actores.vend, 'casos')], ['televenta', mx(actores.tele, 'casos')], ['chofer', mx(actores.cho, 'casos')], ['cliente', mx(actores.cli, 'casos')]].filter(x => x[1]) as [string, any][]
+    if (vol.length) insights.push(`Quién envía más casos: ${vol.map(([t, a]) => `${t} **${a.name}** (${a.casos})`).join(', ')}.`)
+    const er = [['vendedor', mx(actores.vend, 'errores')], ['televenta', mx(actores.tele, 'errores')], ['chofer', mx(actores.cho, 'errores')], ['cliente', mx(actores.cli, 'errores')]].filter(x => x[1] && x[1].errores > 0) as [string, any][]
+    if (er.length) insights.push(`Quién se equivoca más (errores marcados): ${er.map(([t, a]) => `${t} **${a.name}** (${a.errores} de ${a.casos})`).join(', ')}.`)
+    const chTop = choferesDet[0]; if (chTop) insights.push(`El chofer que más reporta es **${chTop.name}** (${chTop.reportes} reportes): ${chTop.propio} por error suyo, ${chTop.porVend} por vendedor, ${chTop.porCli} por cliente y ${chTop.porTele} por televentas.`)
+    const cp = [...choferesDet].sort((a, b) => b.propio - a.propio || b.pctPropio - a.pctPropio)[0]; if (cp && cp.propio > 0) insights.push(`El chofer con más incidencias propias es **${cp.name}**: ${cp.propio} de sus ${cp.reportes} reportes (${cp.pctPropio}%) fueron error suyo.`)
+    const nErr = cls.filter(c => c.length > 0).length
+    if (nErr) insights.push(`**${nErr}** casos (${pct(nErr, total)}%) tienen un error atribuido a una persona: cliente ${errTot.cliente}, ventas ${errTot.ventas}, televentas ${errTot.televentas}, chofer ${errTot.chofer}.`)
     if (k80 > 1) insights.push(`**${k80}** motivos concentran el 80% del valor devuelto: son la prioridad para reducir pérdidas.`)
     if (reincidentes.length) insights.push(`**${reincidentes.length}** ${reincidentes.length === 1 ? 'cliente tiene' : 'clientes tienen'} 3 o más casos en el período; el más frecuente es **${reincidentes[0].name}** (${reincidentes[0].casos}).`)
     if (porInvestigar.length) insights.push(`**${porInvestigar.length}** casos abiertos están **por investigar**: aún no se sabe a qué área corresponden.`)
@@ -92,6 +127,6 @@ export function calcular(d: any) {
     if (perd) insights.push(`De lo registrado como pérdida se ha recuperado el **${pct(recup, perd)}%** (${fmt(recup)} de ${fmt(perd)}).`)
   }
   if (kEnt) insights.push(`Canastas: se ha recuperado el **${pct(kRec, kEnt)}%** de las entregadas y quedan **${fmt(kPend)}** pendientes.`)
-  return { ...d, H0, total, cerr, abiertos, pend, gestionadas, hrs, valor, pValor, recup, perd, pRecup, efect, pTotal, pEfect, kEnt, kRec, kPend, kPerd, cierre, gM, gC, gV, gT, periodo, dV, diasViejo, insights, porArea, vResp, tResp, cFrec, reincidentes, pareto, k80, porInvestigar, imputables, meta: META, valEvit, valCliente, proyMensual, topEvit }
+  return { ...d, H0, total, cerr, abiertos, pend, gestionadas, hrs, valor, pValor, recup, perd, pRecup, efect, pTotal, pEfect, kEnt, kRec, kPend, kPerd, cierre, gM, gC, gV, gT, periodo, dV, diasViejo, insights, porArea, vResp, tResp, cFrec, reincidentes, pareto, k80, porInvestigar, imputables, meta: META, choferesDet, actores, errTot, sinAtribuir, distrib, valEvit, valCliente, proyMensual, topEvit }
 }
 export type M = ReturnType<typeof calcular>

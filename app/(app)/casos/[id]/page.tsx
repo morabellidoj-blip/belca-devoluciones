@@ -3,12 +3,12 @@ import { motLabel } from '@/lib/ui'
 import { revalidatePath } from 'next/cache'
 import { ctx, g, num, subir, urls } from '@/lib/data'
 import { AREAS, AREA_OPC, areaDe } from '@/lib/areas'
-import { T, Box, Grid, I, S, A, F, B, Tbl, Badge, ESTADOS, TIPOS_REC, fmt, horaCR } from '@/lib/ui'
+import { Errores, T, Box, Grid, I, S, A, F, B, Tbl, Badge, ESTADOS, TIPOS_REC, fmt, horaCR } from '@/lib/ui'
 export const dynamic = 'force-dynamic'
 async function actualizar(fd: FormData) {
   'use server'
   const { sb } = await ctx(); const id = g(fd, 'id')!; const estado = g(fd, 'estado')!
-  const upd: any = { estado, observaciones: g(fd, 'observaciones'), area: g(fd, 'area') || 'investigar', critico: fd.get('critico') === 'on', ultima_gestion: new Date().toISOString() }
+  const upd: any = { estado, observaciones: g(fd, 'observaciones'), area: g(fd, 'area') || 'investigar', error_cliente: fd.get('error_cliente') === 'on', error_ventas: fd.get('error_ventas') === 'on', error_televentas: fd.get('error_televentas') === 'on', error_chofer: fd.get('error_chofer') === 'on', critico: fd.get('critico') === 'on', ultima_gestion: new Date().toISOString() }
   if (estado !== 'cerrado') upd.fecha_cierre = null
   await sb.from('casos').update(upd).eq('id', id); revalidatePath(`/casos/${id}`)
 }
@@ -42,11 +42,13 @@ export default async function Caso({ params }: { params: Promise<{ id: string }>
       {dato('Fecha', c.fecha)}{dato('Cliente', c.clientes ? `${c.clientes.codigo} · ${c.clientes.nombre}` : 'Sin asignar')}{dato('Televenta', c.televentas?.nombre)}{dato('Vendedor', c.vendedores?.nombre)}{dato('Ruta', c.rutas?.nombre)}
       {dato('Chofer', c.chofer)}{dato('Factura', c.factura)}
       {dato('Producto', c.producto)}{dato('Cantidad', c.cantidad)}{dato('Monto', fmt(c.monto))}{dato('Motivo', motLabel(c?.motivos_devolucion))}
-      {dato('Registrado', c.created_at?.slice(0, 10) + ' ' + horaCR(c.created_at))}{dato('Área responsable', AREAS[areaDe(c)])}{dato('Gestor', c.profiles?.nombre)}{dato('Cierre', c.fecha_cierre?.slice(0, 16).replace('T', ' '))}</div></Box>
+      {dato('Registrado', c.created_at?.slice(0, 10) + ' ' + horaCR(c.created_at))}{dato('Área responsable', AREAS[areaDe(c)])}<div><p className="text-xs text-slate-500">Error de</p><div className="mt-0.5"><Errores r={c} /></div></div>{dato('Gestor', c.profiles?.nombre)}{dato('Cierre', c.fecha_cierre?.slice(0, 16).replace('T', ' '))}</div></Box>
     <Grid>
       <Box title="Actualizar caso"><form action={actualizar} className="grid gap-3"><input type="hidden" name="id" value={id} />
         <S n="estado" l="Estado" def={c.estado} o={Object.entries(ESTADOS)} /><S n="area" l="Área responsable (cámbiela al concluir la investigación)" def={areaDe(c)} o={AREA_OPC} />
         <A n="observaciones" l="Observaciones" def={c.observaciones} />
+        <fieldset className="rounded-lg border border-slate-200 p-3"><legend className="px-1 text-sm font-semibold text-belca-navy">¿Quién cometió el error?</legend><div className="flex flex-wrap gap-x-5 gap-y-2">
+          {[['error_cliente', 'Cliente', '#d97706'], ['error_ventas', 'Ventas', '#2563eb'], ['error_televentas', 'Televentas', '#7c3aed'], ['error_chofer', 'Chofer', '#0d9488']].map(([n, l, col]) => <label key={n} className="flex items-center gap-2 text-sm"><input type="checkbox" name={n} defaultChecked={!!c[n]} style={{ accentColor: col }} className="w-4 h-4" /><span className="font-medium" style={{ color: col }}>{l}</span></label>)}</div></fieldset>
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="critico" defaultChecked={c.critico} /> Incidencia crítica</label><B>Guardar cambios</B></form></Box>
       <Box title="Nuevo seguimiento"><form action={seguimiento} className="grid gap-3"><input type="hidden" name="id" value={id} />
         <A n="comentario" l="Comentario" /><I n="accion" l="Acción realizada" /><I n="proximo_paso" l="Próximo paso" /><I n="fecha_compromiso" l="Fecha compromiso" type="date" /><B>Registrar</B></form></Box>

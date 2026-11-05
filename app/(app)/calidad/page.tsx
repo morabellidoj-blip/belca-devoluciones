@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic'
 export default async function Calidad({ searchParams }: { searchParams: Promise<any> }) {
   const sp0 = await searchParams; const { sp } = periodoEfectivo(sp0); const { sb } = await ctx()
   const [{ data: casos }, { data: ar }, { data: sg }, { data: rc }] = await Promise.all([
-    all(rango(sb.from('casos').select('id,numero,fecha,estado,monto,observaciones,critico,area,chofer,factura,producto,created_at,clientes(codigo,nombre),motivos_devolucion(codigo,nombre,area,permite_monto_cero)'), 'fecha', sp)),
+    all(rango(sb.from('casos').select('id,numero,fecha,estado,monto,observaciones,critico,area,chofer,factura,producto,created_at,cliente_id,vendedor_id,televenta_id,error_cliente,error_ventas,error_televentas,error_chofer,clientes(codigo,nombre),motivos_devolucion(codigo,nombre,area,permite_monto_cero)'), 'fecha', sp)),
     all(sb.from('archivos').select('caso_id').not('caso_id', 'is', null)), all(sb.from('seguimientos').select('caso_id')), all(sb.from('recuperaciones').select('caso_id'))])
   const R: any[] = casos || []
   const r = evaluar(R, new Set((ar || []).map((x: any) => x.caso_id)), new Set((sg || []).map((x: any) => x.caso_id)), new Set((rc || []).map((x: any) => x.caso_id)), cliTxt)

@@ -11,7 +11,7 @@ async function crear(fd: FormData) {
   const { data, error } = await sb.from('casos').insert({ fecha: g(fd, 'fecha') || hoy(), cliente_id: g(fd, 'cliente_id'), vendedor_id: g(fd, 'vendedor_id'), ruta_id: g(fd, 'ruta_id'),
     ...(g(fd, 'televenta_id') ? { televenta_id: g(fd, 'televenta_id') } : {}),
     chofer: g(fd, 'chofer'), factura: g(fd, 'factura'), producto: g(fd, 'producto'),
-    cantidad: num(fd, 'cantidad'), monto: num(fd, 'monto'), motivo_id: g(fd, 'motivo_id'), estado: g(fd, 'estado') || 'nuevo', area: g(fd, 'area') || 'investigar',
+    cantidad: num(fd, 'cantidad'), monto: num(fd, 'monto'), motivo_id: g(fd, 'motivo_id'), estado: g(fd, 'estado') || 'nuevo', area: g(fd, 'area') || 'investigar', error_cliente: fd.get('error_cliente') === 'on', error_ventas: fd.get('error_ventas') === 'on', error_televentas: fd.get('error_televentas') === 'on', error_chofer: fd.get('error_chofer') === 'on',
     observaciones: g(fd, 'observaciones'), critico: fd.get('critico') === 'on' }).select('id').single()
   if (error) throw new Error(error.message)
   await subir(sb, fd, 'fotos', { caso_id: data.id }, 'foto'); await subir(sb, fd, 'firma', { caso_id: data.id }, 'firma')
@@ -26,7 +26,7 @@ export default async function Nuevo() {
     <Combo name="cliente_id" label="Cliente (escriba código o nombre)" required vacio="Sin asignar" nuevo={NCLI} options={c.clientes.map((x: any) => [x.id, cliLabel(x)])} />
     <TeleVend televentas={c.televentas} vendedores={vend} nTele={ntele(vend)} nVend={NVEN} />
     <Combo name="ruta_id" label="Ruta" nuevo={NRUT} options={c.rutas.map((x: any) => [x.id, x.nombre])} />
-    <Combo name="chofer" label="Chofer" nuevo={NCHO} options={c.choferes.map((x: any) => [x.nombre, x.nombre])} />
+    <Combo name="chofer" label="Chofer (quien reporta o entregó)" nuevo={NCHO} options={c.choferes.map((x: any) => [x.nombre, x.nombre])} />
     <I n="factura" l="Factura" /><I n="producto" l="Producto" />
     <I n="cantidad" l="Cantidad" type="number" /><I n="monto" l="Monto (escriba 0 si no tiene valor, p. ej. un sobrante)" type="number" req />
     <MotivoArea nMot={NMOT} motivos={c.motivos.map((x: any) => ({ id: x.id, label: motLabel(x), area: x.area }))} />
