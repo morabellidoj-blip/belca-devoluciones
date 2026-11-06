@@ -25,6 +25,15 @@ export async function all(q: any, max = 50000) {
   return { data: out, error: null }
 }
 export const filtroCliente = (q: any, v: string) => (v === 'ninguno' ? q.is('cliente_id', null) : q.eq('cliente_id', v))
+export async function cerrarCasos(sb: any, ids: string[], nota = 'Cierre rápido desde el listado') {
+  const lim = Array.from(new Set(ids.filter(Boolean)))
+  if (!lim.length) return { cerrados: 0, error: null as any }
+  const { data, error } = await sb.from('casos').update({ estado: 'cerrado', ultima_gestion: new Date().toISOString() }).in('id', lim).neq('estado', 'cerrado').select('id')
+  if (error) return { cerrados: 0, error }
+  const hechos: string[] = (data || []).map((x: any) => x.id)
+  if (hechos.length) await sb.from('seguimientos').insert(hechos.map(id => ({ caso_id: id, accion: nota })))   // queda registrado en la bitácora
+  return { cerrados: hechos.length, error: null as any }
+}
 export const g = (fd: FormData, k: string) => ((fd.get(k) as string) || null)
 export const num = (fd: FormData, k: string) => Number(fd.get(k) || 0)
 export const rango = (q: any, col: string, sp: any) => { if (sp.desde) q = q.gte(col, sp.desde); if (sp.hasta) q = q.lte(col, sp.hasta); return q }

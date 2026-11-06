@@ -78,7 +78,7 @@ export const Tbl = ({ cols, rows, color }: { cols: string[]; rows: any[][]; colo
       {!rows.length && <tr><td className="p-4 text-slate-400" colSpan={cols.length}>Sin registros</td></tr>}</tbody></table></div>
 export const Badge = ({ children }: { children: React.ReactNode }) => <span className="px-2 py-0.5 rounded bg-slate-100 text-xs whitespace-nowrap">{children}</span>
 
-export function Filtros({ base, sp, cat, estados, gestores, todo, sinAsignar, areas, buscar }: { base: string; sp: any; cat: any; estados?: boolean; gestores?: any[]; todo?: boolean; sinAsignar?: boolean; areas?: boolean; buscar?: boolean }) {
+export function Filtros({ base, sp, cat, estados, gestores, todo, sinAsignar, areas, buscar, ocultos }: { ocultos?: Record<string, string>; base: string; sp: any; cat: any; estados?: boolean; gestores?: any[]; todo?: boolean; sinAsignar?: boolean; areas?: boolean; buscar?: boolean }) {
   const h = hoy()
   return <form className="no-print bg-white rounded-xl p-3 mb-5 flex flex-wrap gap-3 items-end">
     <I n="desde" l="Desde" type="date" def={sp.desde} /><I n="hasta" l="Hasta" type="date" def={sp.hasta} />
@@ -87,6 +87,7 @@ export function Filtros({ base, sp, cat, estados, gestores, todo, sinAsignar, ar
     {buscar && <I n="q" l="Buscar (caso, factura, producto, chofer…)" def={sp.q} cls="w-64" />}
     {areas && <S n="area" l="Área responsable" def={sp.area} o={Object.entries(AREAS_CORTO)} />}
     {gestores && <S n="gestor_id" l="Gestor" def={sp.gestor_id} o={opts(gestores, (g: any) => g.nombre)} />}
+    {ocultos && Object.entries(ocultos).map(([k, v]) => <input key={k} type="hidden" name={k} value={v} />)}
     <B>Filtrar</B>
     <span className="flex gap-3 text-xs text-belca-navy underline pb-2">
       <Link href={`${base}?desde=${h}&hasta=${h}`}>Hoy</Link><Link href={`${base}?desde=${semana(h)}&hasta=${h}`}>Semana</Link>

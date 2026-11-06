@@ -58,6 +58,9 @@ Cada motivo tiene un **área responsable** (Ventas, Logística, Almacén, Calida
 ## Errores por responsable
 Cada caso tiene casillas **Error del cliente / de ventas / de televentas / del chofer** (se sugieren según el área y se pueden cambiar). El Dashboard muestra, por vendedor, televenta, chofer y cliente, cuántos casos envía y cuántos son error suyo, ordenables por errores o por volumen. Para que un error cuente a alguien, el caso debe tener asignada esa persona; **Calidad de datos** lista los que no la tienen.
 
+## Cierre rápido
+En **Casos**, cada fila abiertas tiene un botón **✔ Cerrar** (con confirmación), y se pueden marcar varias casillas y usar **✔ Cerrar los marcados**. El filtro **Solo abiertos** muestra únicamente los pendientes. Cada cierre queda anotado en la bitácora del caso.
+
 ## Informe semanal
 **Informe semanal** (menú): hoja con el resumen de una semana (lunes a domingo), navegación entre semanas, un cuadro para escribir comentarios para gerencia y el botón **⬇ Descargar PDF para gerencia** (también Excel). Por defecto muestra la última semana completa.
 
