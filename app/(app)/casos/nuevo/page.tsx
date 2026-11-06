@@ -11,16 +11,17 @@ async function crear(fd: FormData) {
   const { data, error } = await sb.from('casos').insert({ fecha: g(fd, 'fecha') || hoy(), cliente_id: g(fd, 'cliente_id'), vendedor_id: g(fd, 'vendedor_id'), ruta_id: g(fd, 'ruta_id'),
     ...(g(fd, 'televenta_id') ? { televenta_id: g(fd, 'televenta_id') } : {}),
     chofer: g(fd, 'chofer'), factura: g(fd, 'factura'), producto: g(fd, 'producto'),
-    cantidad: num(fd, 'cantidad'), monto: num(fd, 'monto'), motivo_id: g(fd, 'motivo_id'), estado: g(fd, 'estado') || 'nuevo', area: g(fd, 'area') || 'investigar', error_cliente: fd.get('error_cliente') === 'on', error_ventas: fd.get('error_ventas') === 'on', error_televentas: fd.get('error_televentas') === 'on', error_chofer: fd.get('error_chofer') === 'on',
+    cantidad: num(fd, 'cantidad'), monto: num(fd, 'monto'), motivo_id: g(fd, 'motivo_id'), estado: g(fd, 'estado') || 'nuevo', area: g(fd, 'area') || 'investigar', error_cliente: fd.get('error_cliente') === 'on', error_ventas: fd.get('error_ventas') === 'on', error_televentas: fd.get('error_televentas') === 'on', error_chofer: fd.get('error_chofer') === 'on', error_almacen: fd.get('error_almacen') === 'on', error_pima: fd.get('error_pima') === 'on',
     observaciones: g(fd, 'observaciones'), critico: fd.get('critico') === 'on' }).select('id').single()
-  if (error) throw new Error(error.message)
+  if (error) redirect(`/casos/nuevo?err=${encodeURIComponent(error.message)}`)
   await subir(sb, fd, 'fotos', { caso_id: data.id }, 'foto'); await subir(sb, fd, 'firma', { caso_id: data.id }, 'firma')
   redirect(`/casos/${data.id}`)
 }
-export default async function Nuevo() {
+export default async function Nuevo({ searchParams }: { searchParams: Promise<any> }) {
+  const sp = await searchParams
   const { sb } = await ctx(); const c = await cat(sb)
   const vend = c.vendedores.map((x: any) => [x.id, x.nombre])
-  return <form action={crear} className="bg-white rounded-xl p-6 max-w-4xl grid sm:grid-cols-2 gap-4">
+  return <>{sp.err && <p className="bg-red-50 text-red-800 border border-red-200 rounded-lg p-3 mb-4 text-sm">No se pudo guardar el caso: {sp.err}. Si menciona una columna que no existe, falta ejecutar un archivo de <b>supabase/migrations</b> en Supabase.</p>}<form action={crear} className="bg-white rounded-xl p-6 max-w-4xl grid sm:grid-cols-2 gap-4">
     <div className="sm:col-span-2"><T>Nuevo caso</T><p className="text-sm text-slate-500 -mt-3">Si un cliente, motivo, chofer, vendedor, ruta o televenta no existe, escríbalo y use <b>➕ Crear</b> al final de la lista. Vendedor, televenta y cliente son opcionales: complételos solo si el caso se originó en la venta; <b>el área responsable</b> es la que define a quién se le atribuye.</p></div>
     <I n="fecha" l="Fecha" type="date" def={hoy()} />
     <Combo name="cliente_id" label="Cliente (escriba código o nombre)" required vacio="Sin asignar" nuevo={NCLI} options={c.clientes.map((x: any) => [x.id, cliLabel(x)])} />
@@ -34,5 +35,5 @@ export default async function Nuevo() {
     <label className="flex items-center gap-2 text-sm sm:mt-7"><input type="checkbox" name="critico" /> Incidencia crítica</label>
     <A n="observaciones" l="Observaciones" cls="sm:col-span-2" />
     <F n="fotos" l="Fotografías" /><F n="firma" l="Firma (opcional, foto)" multiple={false} />
-    <div className="sm:col-span-2"><B>Guardar caso</B></div></form>
+    <div className="sm:col-span-2"><B>Guardar caso</B></div></form></>
 }

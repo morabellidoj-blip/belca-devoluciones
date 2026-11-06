@@ -62,7 +62,7 @@ export async function construirXlsx(m: M, logo: Buffer | null, abiertos: any[]):
     { formula: `IF(SUM(B$${a0}:B$${a0 + ar.length - 1})=0,0,B${a0 + i}/SUM(B$${a0}:B$${a0 + ar.length - 1}))`, result: pct(x.casos, m.total) / 100 }, x.valor,
     { formula: `IF(SUM(D$${a0}:D$${a0 + ar.length - 1})=0,0,D${a0 + i}/SUM(D$${a0}:D$${a0 + ar.length - 1}))`, result: pct(x.valor, m.valor) / 100 }]), [undefined, n0, '0.0%', n0, '0.0%'])
   const E = m.errTot, tt = m.total
-  bloq('Errores marcados por tipo de responsable', ['Tipo de error', 'Casos', '% de los casos', 'Sin persona asignada'], [['Error del cliente', E.cliente, tt ? E.cliente / tt : 0, m.sinAtribuir.cliente], ['Error de ventas', E.ventas, tt ? E.ventas / tt : 0, m.sinAtribuir.ventas], ['Error de televentas', E.televentas, tt ? E.televentas / tt : 0, m.sinAtribuir.televentas], ['Error del chofer', E.chofer, tt ? E.chofer / tt : 0, m.sinAtribuir.chofer]], [undefined, n0, '0.0%', n0])
+  bloq('Errores marcados por tipo de responsable', ['Tipo de error', 'Casos', '% de los casos', 'Sin persona asignada'], [['Error del cliente', E.cliente, tt ? E.cliente / tt : 0, m.sinAtribuir.cliente], ['Error de ventas', E.ventas, tt ? E.ventas / tt : 0, m.sinAtribuir.ventas], ['Error de televentas', E.televentas, tt ? E.televentas / tt : 0, m.sinAtribuir.televentas], ['Error del chofer', E.chofer, tt ? E.chofer / tt : 0, m.sinAtribuir.chofer], ['Error de almacén', E.almacen, tt ? E.almacen / tt : 0, null], ['Error de PIMA', E.pima, tt ? E.pima / tt : 0, null]], [undefined, n0, '0.0%', n0])
   const act = (tit: string, etq: string, items: any[], extra = false) => { const it = [...items].sort((x, y) => y.errores - x.errores || y.pctErr - x.pctErr || y.casos - x.casos).slice(0, 30); const i0 = fr + 2
     bloq(tit, [etq, 'Casos', 'Errores', '% error', 'Valor del error', ...(extra ? ['Canastas entregadas', '% recup. canastas'] : [])], it.map((x, i) => [x.name, x.casos, x.errores, { formula: `IF(B${i0 + i}=0,0,C${i0 + i}/B${i0 + i})`, result: x.casos ? x.errores / x.casos : 0 }, x.valorErr, ...(extra ? [x.ent || 0, x.ent ? x.pctRec / 100 : null] : [])]), [undefined, n0, n0, '0.0%', n0, n0, '0.0%']) }
   act('Vendedores: casos enviados y errores de ventas', 'Vendedor', m.actores.vend); act('Televentas: casos enviados y errores de televentas', 'Televenta', m.actores.tele)
@@ -74,9 +74,9 @@ export async function construirXlsx(m: M, logo: Buffer | null, abiertos: any[]):
   bloq('Casos abiertos por investigar', ['Caso', 'Fecha', 'Cliente', 'Motivo', 'Días abiertos', 'Valor'], m.porInvestigar.slice(0, 40).map((r: any) => [r.numero, r.fecha, cliTxt(r.clientes), motLabel(r.motivos_devolucion), Math.floor((Date.now() - +new Date(r.created_at)) / 864e5), Number(r.monto || 0)]), [undefined, undefined, undefined, undefined, n0, n0])
 
   // ---- Choferes: qué reportan y cuántas incidencias son suyas
-  const ch = wb.addWorksheet('Choferes', { views: [{ showGridLines: false, state: 'frozen', ySplit: 4 }] }); banda(ch, 'Choferes: quién reporta y quién se equivoca', 11); anchos(ch, [34, 11, 12, 11, 12, 12, 13, 16, 16, 16, 14])
-  tabla(ch, 4, ['Chofer', 'Reportes', 'Error del chofer', '% suyo', 'Por vendedor', 'Por cliente', 'Por televentas', 'Sin error de personas', 'Valor devuelto', 'Canastas entregadas', '% recup. canastas'], m.choferesDet.map((x: any, i: number) => [x.name, x.reportes, x.propio,
-    { formula: `IF(B${5 + i}=0,0,C${5 + i}/B${5 + i})`, result: x.reportes ? x.propio / x.reportes : 0 }, x.porVend, x.porCli, x.porTele, x.sinPersona, x.valor, x.ent || 0, x.ent ? x.pctRec / 100 : null]), [undefined, n0, n0, '0.0%', n0, n0, n0, n0, n0, n0, '0.0%'])
+  const ch = wb.addWorksheet('Choferes', { views: [{ showGridLines: false, state: 'frozen', ySplit: 4 }] }); banda(ch, 'Choferes: quién reporta y quién se equivoca', 13); anchos(ch, [34, 11, 12, 11, 12, 12, 13, 12, 12, 16, 16, 16, 14])
+  tabla(ch, 4, ['Chofer', 'Reportes', 'Error del chofer', '% suyo', 'Por vendedor', 'Por cliente', 'Por televentas', 'Por almacén', 'Por PIMA', 'Sin error marcado', 'Valor devuelto', 'Canastas entregadas', '% recup. canastas'], m.choferesDet.map((x: any, i: number) => [x.name, x.reportes, x.propio,
+    { formula: `IF(B${5 + i}=0,0,C${5 + i}/B${5 + i})`, result: x.reportes ? x.propio / x.reportes : 0 }, x.porVend, x.porCli, x.porTele, x.porAlm, x.porPima, x.sinPersona, x.valor, x.ent || 0, x.ent ? x.pctRec / 100 : null]), [undefined, n0, n0, '0.0%', n0, n0, n0, n0, n0, n0, n0, n0, '0.0%'])
   ch.getCell(5 + m.choferesDet.length + 1, 1).value = 'Reportes = casos registrados con el chofer (suele ser quien llama a reportar). Las columnas de causa cuentan cada marca por separado.'; ch.getCell(5 + m.choferesDet.length + 1, 1).font = { italic: true, color: { argb: 'FF64748B' } }
 
   // ---- Rankings (con porcentaje en fórmula y barra visual)
@@ -128,20 +128,20 @@ export async function construirXlsx(m: M, logo: Buffer | null, abiertos: any[]):
   tabla(ab, 4, ['Caso', 'Fecha', 'Cliente', 'Motivo', 'Área', 'Estado', 'Días abiertos', 'Valor'], abiertos.map((r: any) => [r.numero, r.fecha, cliTxt(r?.clientes), motLabel(r.motivos_devolucion), AREAS_CORTO[areaDe(r)], ESTADOS[r.estado], Math.floor((Date.now() - +new Date(r.created_at)) / 864e5), Number(r.monto || 0)]), [undefined, undefined, undefined, undefined, undefined, undefined, n0, n0])
 
   // ---- Detalle de casos
-  const dt = wb.addWorksheet('Casos (detalle)', { views: [{ showGridLines: false, state: 'frozen', ySplit: 4 }] }); banda(dt, 'Registro completo de casos', 17)
-  anchos(dt, [14, 12, 8, 32, 22, 22, 18, 18, 46, 16, 14, 24, 10, 14, 20, 9, 14])
-  const heads = ['Caso', 'Fecha', 'Hora', 'Cliente', 'Televenta', 'Vendedor', 'Ruta', 'Chofer', 'Motivo', 'Área', 'Factura', 'Producto', 'Cantidad', 'Monto', 'Estado', 'Crítico', 'Horas a cierre']
-  const filas = [...m.R].sort((a: any, b: any) => (b.fecha + b.created_at).localeCompare(a.fecha + a.created_at)).map((r: any) => [r.numero, r.fecha, horaCR(r.created_at), cliTxt(r?.clientes), r.televentas?.nombre, r.vendedores?.nombre, r.rutas?.nombre, r.chofer, motLabel(r.motivos_devolucion), AREAS_CORTO[areaDe(r)], r.factura, r.producto, r.cantidad == null ? null : Number(r.cantidad), Number(r.monto || 0), ESTADOS[r.estado], r.critico ? 'Sí' : '', r.fecha_cierre ? Math.round((+new Date(r.fecha_cierre) - +new Date(r.created_at)) / 36e5 * 10) / 10 : null])
-  const fd = tabla(dt, 4, heads, filas, [undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, n0, n0, undefined, undefined, '0.0'])
+  const dt = wb.addWorksheet('Casos (detalle)', { views: [{ showGridLines: false, state: 'frozen', ySplit: 4 }] }); banda(dt, 'Registro completo de casos', 18)
+  anchos(dt, [14, 12, 8, 32, 22, 22, 18, 18, 46, 16, 26, 14, 24, 10, 14, 20, 9, 14])
+  const heads = ['Caso', 'Fecha', 'Hora', 'Cliente', 'Televenta', 'Vendedor', 'Ruta', 'Chofer', 'Motivo', 'Área', 'Error de', 'Factura', 'Producto', 'Cantidad', 'Monto', 'Estado', 'Crítico', 'Horas a cierre']
+  const filas = [...m.R].sort((a: any, b: any) => (b.fecha + b.created_at).localeCompare(a.fecha + a.created_at)).map((r: any) => [r.numero, r.fecha, horaCR(r.created_at), cliTxt(r?.clientes), r.televentas?.nombre, r.vendedores?.nombre, r.rutas?.nombre, r.chofer, motLabel(r.motivos_devolucion), AREAS_CORTO[areaDe(r)], [['error_cliente', 'Cliente'], ['error_ventas', 'Ventas'], ['error_televentas', 'Televentas'], ['error_chofer', 'Chofer'], ['error_almacen', 'Almacén'], ['error_pima', 'PIMA']].filter(([k]) => r[k]).map(x => x[1]).join(', '), r.factura, r.producto, r.cantidad == null ? null : Number(r.cantidad), Number(r.monto || 0), ESTADOS[r.estado], r.critico ? 'Sí' : '', r.fecha_cierre ? Math.round((+new Date(r.fecha_cierre) - +new Date(r.created_at)) / 36e5 * 10) / 10 : null])
+  const fd = tabla(dt, 4, heads, filas, [undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, n0, n0, undefined, undefined, '0.0'])
   if (filas.length) { dt.autoFilter = { from: { row: 4, column: 1 }, to: { row: 4 + filas.length, column: heads.length } }
-    const t = dt.getRow(fd); t.getCell(1).value = 'TOTAL'; t.getCell(14).value = { formula: `SUBTOTAL(109,N5:N${fd - 1})`, result: m.valor }; t.getCell(14).numFmt = n0; t.getCell(13).value = ''
+    const t = dt.getRow(fd); t.getCell(1).value = 'TOTAL'; t.getCell(15).value = { formula: `SUBTOTAL(109,O5:O${fd - 1})`, result: m.valor }; t.getCell(15).numFmt = n0; t.getCell(14).value = ''
     for (let c = 1; c <= heads.length; c++) { t.getCell(c).font = { bold: true }; t.getCell(c).fill = fill('FFE2E8F0') } }
   wb.eachSheet(ws => { ws.pageSetup = { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9 } })
   return Buffer.from(await wb.xlsx.writeBuffer())
 }
 
 /* ================================ PDF ================================ */
-export function construirPdf(m: M, logo: Buffer | null, abiertos: any[]): ArrayBuffer {
+export function construirPdf(m: M, logo: Buffer | null, abiertos: any[], opts: { titulo?: string; subtitulo?: string; nota?: string } = {}): ArrayBuffer {
   const META = m.meta
   const doc = new jsPDF({ unit: 'mm', format: 'a4' }), W = 210, MG = 14, AN = W - 2 * MG
   const NV: [number, number, number] = [11, 30, 56], OR: [number, number, number] = [243, 156, 31], GR: [number, number, number] = [100, 116, 139]
@@ -149,10 +149,10 @@ export function construirPdf(m: M, logo: Buffer | null, abiertos: any[]): ArrayB
   // encabezado
   doc.setFillColor(...NV); doc.rect(0, 0, W, 30, 'F'); doc.setFillColor(...OR); doc.rect(0, 30, W, 1.2, 'F')
   if (logo) { const s = pngSize(logo), w = 46; doc.addImage('data:image/png;base64,' + logo.toString('base64'), 'PNG', MG, 5.5, w, w * s.h / s.w) }
-  doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(17); doc.text('Informe gerencial', W - MG, 14, { align: 'right' })
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.text('Devoluciones, canastas y recuperación económica', W - MG, 20, { align: 'right' }); doc.text(`Período: ${m.periodo}  ·  Generado: ${m.H0}`, W - MG, 25, { align: 'right' })
+  doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(17); doc.text(opts.titulo || 'Informe gerencial', W - MG, 14, { align: 'right' })
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.text('Devoluciones, canastas y recuperación económica', W - MG, 20, { align: 'right' }); doc.text(`${opts.subtitulo || `Período: ${m.periodo}`}  ·  Generado: ${m.H0}`, W - MG, 25, { align: 'right' })
   // tarjetas KPI
-  const dlt = (d: number | null, u = '%') => (d == null ? '' : `${d > 0 ? '+' : ''}${d}${u} vs. período anterior`)
+  const dlt = (d: number | null, u = '%') => (d == null ? '' : `${d > 0 ? '+' : ''}${d}${u} vs. ${opts.titulo?.includes('semanal') ? 'semana' : 'período'} anterior`)
   const cards: [string, string, string, number | null][] = [
     ['Valor devuelto', sp(m.valor), `${sp(m.total)} casos`, delta(m.valor, m.pValor)], ['Efectividad de cierre', `${m.efect}%`, `${m.cerr} de ${m.total} cerrados · meta ${META}%`, m.pTotal ? Math.round((m.efect - m.pEfect) * 10) / 10 : null],
     ['Monto recuperado', sp(m.recup), `de ${sp(m.perd)} en pérdidas`, delta(m.recup, m.pRecup)], ['% Recuperación económica', `${pct(m.recup, m.perd)}%`, `No recuperado ${sp(m.perd - m.recup)}`, null],
@@ -182,6 +182,10 @@ export function construirPdf(m: M, logo: Buffer | null, abiertos: any[]): ArrayB
     if (!top6.length) { doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...GR); doc.text('Sin datos', x, yy + 7) }
   }
   const nuevaPagina = (alto: number) => { if (y + alto > 280) { doc.addPage(); y = 16 } }
+  if (opts.nota) { const ls = doc.splitTextToSize(opts.nota, AN - 9), h = ls.length * 4 + 11; nuevaPagina(h + 6)
+    doc.setFillColor(254, 249, 231); doc.roundedRect(MG, y, AN, h, 1.5, 1.5, 'F'); doc.setFillColor(...OR); doc.rect(MG, y, 1.4, h, 'F')
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(...NV); doc.text('Comentarios para gerencia', MG + 5, y + 5.5)
+    doc.setFont('helvetica', 'normal'); doc.setTextColor(51, 65, 85); doc.text(ls, MG + 5, y + 11); y += h + 6 }
   nuevaPagina(70); doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(...NV); doc.text('Diagnóstico: ¿de dónde vienen las devoluciones?', MG, y); y += 7
   const colw = (AN - 10) / 2
   rk('Por área responsable (valor)', m.porArea.filter((x: any) => x.casos).sort((a: any, b: any) => b.valor - a.valor).map((x: any) => ({ name: `${x.label} (${x.casos} casos)`, valor: x.valor })), MG, y, colw)
@@ -201,11 +205,13 @@ export function construirPdf(m: M, logo: Buffer | null, abiertos: any[]): ArrayB
     autoTable(doc, { startY: y + 2, head: [head], body, margin: { left: MG, right: MG }, styles: { fontSize: 7.5, cellPadding: 1.8 }, headStyles: { fillColor: NV, textColor: 255 }, alternateRowStyles: { fillColor: [248, 250, 252] }, columnStyles: fin, didParseCell: (d: any) => { if (d.section === 'head' && fin?.[d.column.index]?.halign) d.cell.styles.halign = fin[d.column.index].halign } })
     y = (doc as any).lastAutoTable.finalY + 8 }
   const E = m.errTot, tt = m.total
-  tb('Errores marcados por tipo de responsable', ['Tipo de error', 'Casos', '% de los casos', 'Sin persona asignada'], [['Error del cliente', E.cliente, `${pct(E.cliente, tt)}%`, m.sinAtribuir.cliente], ['Error de ventas', E.ventas, `${pct(E.ventas, tt)}%`, m.sinAtribuir.ventas], ['Error de televentas', E.televentas, `${pct(E.televentas, tt)}%`, m.sinAtribuir.televentas], ['Error del chofer', E.chofer, `${pct(E.chofer, tt)}%`, m.sinAtribuir.chofer]], { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' } })
+  tb('Errores marcados por tipo de responsable', ['Tipo de error', 'Casos', '% de los casos', 'Sin persona asignada'], [['Error del cliente', E.cliente, `${pct(E.cliente, tt)}%`, m.sinAtribuir.cliente], ['Error de ventas', E.ventas, `${pct(E.ventas, tt)}%`, m.sinAtribuir.ventas], ['Error de televentas', E.televentas, `${pct(E.televentas, tt)}%`, m.sinAtribuir.televentas], ['Error del chofer', E.chofer, `${pct(E.chofer, tt)}%`, m.sinAtribuir.chofer], ['Error de almacén', E.almacen, `${pct(E.almacen, tt)}%`, '—'], ['Error de PIMA', E.pima, `${pct(E.pima, tt)}%`, '—']], { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' } })
   const R5 = { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' } }
   const actTab = (tit: string, etq: string, items: any[]) => { const it = [...items].sort((x, y) => y.errores - x.errores || y.pctErr - x.pctErr || y.casos - x.casos).slice(0, 8); if (it.length) tb(tit, [etq, 'Casos', 'Errores', '% error', 'Valor del error'], it.map(x => [corta(x.name, 44) + (etq === 'Cliente' && x.casos >= 3 ? '  (reincidente)' : ''), x.casos, x.errores, `${x.pctErr}%`, sp(x.valorErr)]), R5) }
   actTab('Vendedores: casos enviados y errores de ventas', 'Vendedor', m.actores.vend); actTab('Televentas: casos enviados y errores de televentas', 'Televenta', m.actores.tele)
-  if (m.choferesDet.length) tb('Choferes: quién reporta y por qué', ['Chofer', 'Reportes', 'Error suyo', '% suyo', 'Por vendedor', 'Por cliente', 'Por televentas', 'Sin persona'], m.choferesDet.slice(0, 10).map((x: any) => [corta(x.name, 30), x.reportes, x.propio, `${x.pctPropio}%`, x.porVend, x.porCli, x.porTele, x.sinPersona]), { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'right' }, 7: { halign: 'right' } }); actTab('Clientes: casos enviados y errores del cliente', 'Cliente', m.actores.cli)
+  if (m.choferesDet.length) tb('Choferes: quién reporta y por qué', ['Chofer', 'Reportes', 'Error suyo', '% suyo', 'Por vend.', 'Por cliente', 'Por tele.', 'Almacén', 'PIMA', 'Sin error'], m.choferesDet.slice(0, 10).map((x: any) => [corta(x.name, 26), x.reportes, x.propio, `${x.pctPropio}%`, x.porVend, x.porCli, x.porTele, x.porAlm, x.porPima, x.sinPersona]), { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'right' }, 7: { halign: 'right' }, 8: { halign: 'right' }, 9: { halign: 'right' } }); actTab('Clientes: casos enviados y errores del cliente', 'Cliente', m.actores.cli)
+  const crit = m.R.filter((r: any) => r.critico)
+  if (crit.length) tb(`Casos críticos del período (${crit.length})`, ['Caso', 'Cliente', 'Motivo', 'Estado', 'Valor'], crit.slice(0, 10).map((r: any) => [r.numero, corta(cliTxt(r.clientes), 30), corta(motLabel(r.motivos_devolucion), 38), ESTADOS[r.estado], sp(r.monto)]), { 4: { halign: 'right' } })
   if (m.topEvit.length) tb('Oportunidad de mejora: motivos internos que más pesan (evitables)', ['Motivo', 'Área', 'Casos', 'Valor'], m.topEvit.map((x: any) => [corta(x.name, 46), AREAS_CORTO[x.area], x.casos, sp(x.valor)]), { 2: { halign: 'right' }, 3: { halign: 'right' } })
   if (m.porInvestigar.length) tb('Casos abiertos por investigar', ['Caso', 'Cliente', 'Motivo', 'Días'], m.porInvestigar.slice(0, 8).map((r: any) => [r.numero, corta(cliTxt(r.clientes), 30), corta(motLabel(r.motivos_devolucion), 40), Math.floor((Date.now() - +new Date(r.created_at)) / 864e5)]), { 3: { halign: 'right' } })
   tb('Casos abiertos con más antigüedad', ['Caso', 'Cliente', 'Motivo', 'Estado', 'Días'], abiertos.slice(0, 10).map((r: any) => [r.numero, corta(cliTxt(r?.clientes), 28), corta(motLabel(r.motivos_devolucion), 34), ESTADOS[r.estado], Math.floor((Date.now() - +new Date(r.created_at)) / 864e5)]), { 4: { halign: 'right' } })
@@ -216,6 +222,6 @@ export function construirPdf(m: M, logo: Buffer | null, abiertos: any[]): ArrayB
   // pie de página
   const n = doc.getNumberOfPages()
   for (let i = 1; i <= n; i++) { doc.setPage(i); doc.setDrawColor(226, 232, 240); doc.line(MG, 287, W - MG, 287); doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(...GR)
-    doc.text(`Belca Foodservice · Informe gerencial · ${m.periodo}`, MG, 291); doc.text(`Página ${i} de ${n}`, W - MG, 291, { align: 'right' }) }
+    doc.text(`Belca Foodservice · ${opts.titulo || 'Informe gerencial'} · ${m.periodo}`, MG, 291); doc.text(`Página ${i} de ${n}`, W - MG, 291, { align: 'right' }) }
   return doc.output('arraybuffer')
 }

@@ -8,9 +8,11 @@ export const dynamic = 'force-dynamic'
 async function actualizar(fd: FormData) {
   'use server'
   const { sb } = await ctx(); const id = g(fd, 'id')!; const estado = g(fd, 'estado')!
-  const upd: any = { estado, observaciones: g(fd, 'observaciones'), area: g(fd, 'area') || 'investigar', error_cliente: fd.get('error_cliente') === 'on', error_ventas: fd.get('error_ventas') === 'on', error_televentas: fd.get('error_televentas') === 'on', error_chofer: fd.get('error_chofer') === 'on', critico: fd.get('critico') === 'on', ultima_gestion: new Date().toISOString() }
+  const upd: any = { estado, observaciones: g(fd, 'observaciones'), area: g(fd, 'area') || 'investigar', error_cliente: fd.get('error_cliente') === 'on', error_ventas: fd.get('error_ventas') === 'on', error_televentas: fd.get('error_televentas') === 'on', error_chofer: fd.get('error_chofer') === 'on', error_almacen: fd.get('error_almacen') === 'on', error_pima: fd.get('error_pima') === 'on', critico: fd.get('critico') === 'on', ultima_gestion: new Date().toISOString() }
   if (estado !== 'cerrado') upd.fecha_cierre = null
-  await sb.from('casos').update(upd).eq('id', id); revalidatePath(`/casos/${id}`)
+  const { error } = await sb.from('casos').update(upd).eq('id', id)
+  revalidatePath(`/casos/${id}`)
+  redirect(error ? `/casos/${id}?err=${encodeURIComponent(error.message)}` : `/casos/${id}?ok=1`)
 }
 async function seguimiento(fd: FormData) {
   'use server'
@@ -27,8 +29,8 @@ async function recuperacion(fd: FormData) {
 }
 async function archivo(fd: FormData) { 'use server'; const { sb } = await ctx(); const id = g(fd, 'id')!; await subir(sb, fd, 'archivo', { caso_id: id }, g(fd, 'tipo') || 'foto'); revalidatePath(`/casos/${id}`) }
 async function borrar(fd: FormData) { 'use server'; const { sb, admin } = await ctx(); if (!admin) return; await sb.from('casos').delete().eq('id', g(fd, 'id')); redirect('/casos') }
-export default async function Caso({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params; const { sb, admin } = await ctx()
+export default async function Caso({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<any> }) {
+  const { id } = await params; const sp = await searchParams; const { sb, admin } = await ctx()
   const { data: c } = await sb.from('casos').select('*,clientes(codigo,nombre),vendedores(nombre),televentas(nombre),rutas(nombre),motivos_devolucion(codigo,nombre,area),profiles(nombre)').eq('id', id).single()
   if (!c) return <p>Caso no encontrado.</p>
   const [{ data: seg }, { data: rec }, { data: arch }] = await Promise.all([
@@ -37,6 +39,8 @@ export default async function Caso({ params }: { params: Promise<{ id: string }>
   const files = await urls(sb, arch || [])
   const dato = (l: string, v: any) => <div><p className="text-xs text-slate-500">{l}</p><p className="text-sm font-medium">{v || '—'}</p></div>
   return <div>
+    {sp.ok && <p className="bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-lg p-3 mb-4 text-sm">✔ Cambios guardados.</p>}
+    {sp.err && <p className="bg-red-50 text-red-800 border border-red-200 rounded-lg p-3 mb-4 text-sm">No se pudo guardar: {sp.err}. Si menciona una columna que no existe, falta ejecutar un archivo de <b>supabase/migrations</b> en Supabase.</p>}
     <div className="flex items-center gap-3 mb-5"><T>{c.numero}</T><Badge>{ESTADOS[c.estado]}</Badge>{c.critico && <span className="text-red-600 text-xs font-bold">CRÍTICO</span>}</div>
     <Box><div className="grid grid-cols-2 md:grid-cols-4 gap-4">
       {dato('Fecha', c.fecha)}{dato('Cliente', c.clientes ? `${c.clientes.codigo} · ${c.clientes.nombre}` : 'Sin asignar')}{dato('Televenta', c.televentas?.nombre)}{dato('Vendedor', c.vendedores?.nombre)}{dato('Ruta', c.rutas?.nombre)}
@@ -48,7 +52,7 @@ export default async function Caso({ params }: { params: Promise<{ id: string }>
         <S n="estado" l="Estado" def={c.estado} o={Object.entries(ESTADOS)} /><S n="area" l="Área responsable (cámbiela al concluir la investigación)" def={areaDe(c)} o={AREA_OPC} />
         <A n="observaciones" l="Observaciones" def={c.observaciones} />
         <fieldset className="rounded-lg border border-slate-200 p-3"><legend className="px-1 text-sm font-semibold text-belca-navy">¿Quién cometió el error?</legend><div className="flex flex-wrap gap-x-5 gap-y-2">
-          {[['error_cliente', 'Cliente', '#d97706'], ['error_ventas', 'Ventas', '#2563eb'], ['error_televentas', 'Televentas', '#7c3aed'], ['error_chofer', 'Chofer', '#0d9488']].map(([n, l, col]) => <label key={n} className="flex items-center gap-2 text-sm"><input type="checkbox" name={n} defaultChecked={!!c[n]} style={{ accentColor: col }} className="w-4 h-4" /><span className="font-medium" style={{ color: col }}>{l}</span></label>)}</div></fieldset>
+          {[['error_cliente', 'Cliente', '#d97706'], ['error_ventas', 'Ventas', '#2563eb'], ['error_televentas', 'Televentas', '#7c3aed'], ['error_chofer', 'Chofer', '#0d9488'], ['error_almacen', 'Almacén', '#be185d'], ['error_pima', 'PIMA', '#0891b2']].map(([n, l, col]) => <label key={n} className="flex items-center gap-2 text-sm"><input type="checkbox" name={n} defaultChecked={!!c[n]} style={{ accentColor: col }} className="w-4 h-4" /><span className="font-medium" style={{ color: col }}>{l}</span></label>)}</div></fieldset>
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="critico" defaultChecked={c.critico} /> Incidencia crítica</label><B>Guardar cambios</B></form></Box>
       <Box title="Nuevo seguimiento"><form action={seguimiento} className="grid gap-3"><input type="hidden" name="id" value={id} />
         <A n="comentario" l="Comentario" /><I n="accion" l="Acción realizada" /><I n="proximo_paso" l="Próximo paso" /><I n="fecha_compromiso" l="Fecha compromiso" type="date" /><B>Registrar</B></form></Box>

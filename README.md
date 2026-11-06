@@ -11,7 +11,7 @@ Tiempo estimado: 30–40 minutos. Siga los pasos en orden.
 ## PARTE 2 · Base de datos (Supabase)
 1. **New project** → nombre `belca-devoluciones` → invente una contraseña de base (guárdela) → región más cercana (ej. East US) → Create. Espere 2 minutos.
 2. Menú izquierdo **SQL Editor** → **New query**.
-3. Abra el archivo `supabase/migrations/001_schema.sql` de este zip con el Bloc de notas, copie TODO, péguelo en Supabase y pulse **Run**. Debe decir "Success". Luego haga lo mismo, en este orden, con `002_unificar_llamadas.sql` (carga también los 23 motivos), `003_choferes.sql`, `004_avisos_teams.sql`, `006_televentas_y_crear.sql`, `007_casos_sin_cliente.sql`, `008_areas_responsables.sql`, `009_calidad_meta_resumen.sql` y `011_errores_por_responsable.sql`. Si ya activó pg_cron (archivo 005), ejecute también `010_programar_resumen_semanal.sql` para el resumen semanal a Teams. Por último ejecute `005_programar_alertas.sql` para que las alertas se revisen cada 30 minutos aunque nadie tenga la app abierta (si da error, active la extensión en Database → Extensions → pg_cron y repita).
+3. Abra el archivo `supabase/migrations/001_schema.sql` de este zip con el Bloc de notas, copie TODO, péguelo en Supabase y pulse **Run**. Debe decir "Success". Luego haga lo mismo, en este orden, con `002_unificar_llamadas.sql` (carga también los 23 motivos), `003_choferes.sql`, `004_avisos_teams.sql`, `006_televentas_y_crear.sql`, `007_casos_sin_cliente.sql`, `008_areas_responsables.sql`, `009_calidad_meta_resumen.sql`, `011_errores_por_responsable.sql` y `012_error_almacen_pima.sql`. Si ya activó pg_cron (archivo 005), ejecute también `010_programar_resumen_semanal.sql` para el resumen semanal a Teams. Por último ejecute `005_programar_alertas.sql` para que las alertas se revisen cada 30 minutos aunque nadie tenga la app abierta (si da error, active la extensión en Database → Extensions → pg_cron y repita).
 4. Menú **Authentication → Users → Add user → Create new user**: ponga su correo y una contraseña, y marque **Auto Confirm User**.
 5. Vuelva a **SQL Editor** → New query, ejecute (cambie el correo por el suyo):
    `update profiles set rol='admin' where id=(select id from auth.users where email='SU_CORREO');`
@@ -57,6 +57,9 @@ Cada motivo tiene un **área responsable** (Ventas, Logística, Almacén, Calida
 
 ## Errores por responsable
 Cada caso tiene casillas **Error del cliente / de ventas / de televentas / del chofer** (se sugieren según el área y se pueden cambiar). El Dashboard muestra, por vendedor, televenta, chofer y cliente, cuántos casos envía y cuántos son error suyo, ordenables por errores o por volumen. Para que un error cuente a alguien, el caso debe tener asignada esa persona; **Calidad de datos** lista los que no la tienen.
+
+## Informe semanal
+**Informe semanal** (menú): hoja con el resumen de una semana (lunes a domingo), navegación entre semanas, un cuadro para escribir comentarios para gerencia y el botón **⬇ Descargar PDF para gerencia** (también Excel). Por defecto muestra la última semana completa.
 
 ## Calidad de datos, ayuda y metas
 - **Calidad de datos** (menú): revisa montos en 0 sin justificar, posibles duplicados, casos sin fotos, críticos sin seguimiento, casos por investigar hace más de 7 días, cerrados sin explicación o sin recuperación, y logística/almacén sin chofer. Un monto 0 no se marca en motivos configurados como "puede ir sin monto" (p. ej. sobrante), que se ajusta en Administración.

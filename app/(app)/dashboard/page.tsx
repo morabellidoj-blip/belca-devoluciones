@@ -15,7 +15,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   const [datos, c, { data: gest }] = await Promise.all([cargar(sb, sp0), cat(sb), sb.from('profiles').select('id,nombre').eq('activo', true)])
   const m = calcular(datos)
   const { sp, todo, R, K, rec, viejos, H0, total, cerr, abiertos, pend, gestionadas, hrs, valor, pValor, recup, perd, pRecup, efect, pTotal, pEfect, kEnt, kRec, kPend, kPerd, cierre, periodo, insights, porArea, pareto, porInvestigar,
-    meta, valEvit, valCliente, proyMensual, topEvit, actores, errTot, sinAtribuir, distrib, choferesDet } = m
+    meta, valEvit, valCliente, proyMensual, topEvit, actores, errTot, sinAtribuir, distrib, choferesDet, valErr } = m
   const orden = sp0.orden === 'casos' ? 'casos' : 'errores'
   const qs = new URLSearchParams(); if (todo) qs.set('todo', '1'); else { if (sp.desde) qs.set('desde', sp.desde); if (sp.hasta) qs.set('hasta', sp.hasta) }
   for (const k of ['cliente_id', 'estado', 'gestor_id', 'area']) if (sp[k]) qs.set(k, sp[k])
@@ -34,6 +34,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         <p className="text-sm text-slate-500">Devoluciones, canastas y recuperación económica · <span className="font-medium">{periodo}</span></p></div>
       <div className="flex flex-wrap items-center gap-2"><p className="text-xs text-slate-400 mr-1">Actualizado {H0} {horaCR(new Date().toISOString())}</p>
         <a href={`/api/informe?fmt=xlsx&${qs}`} className={bt}>⬇ Excel</a><a href={`/api/informe?fmt=pdf&${qs}`} className={bt}>⬇ PDF</a><PrintButton /></div></div>
+    {datos.errorCasos && <p className="bg-red-50 text-red-800 border border-red-200 rounded-lg p-3 mb-4 text-sm">No se pudieron cargar los casos: {datos.errorCasos}. Falta ejecutar un archivo de la carpeta <b>supabase/migrations</b> en Supabase (revise Administración → Estado de la instalación).</p>}
     <Filtros base="/dashboard" sp={sp} cat={c} estados gestores={admin ? gest : undefined} todo sinAsignar areas />
 
     <H>Resumen ejecutivo</H>
@@ -50,9 +51,11 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       <Kpi color={COLORES.ventas} t="Error de ventas" v={errTot.ventas} sub={`${pct(errTot.ventas, total)}% de los casos`} />
       <Kpi color={COLORES.televentas} t="Error de televentas" v={errTot.televentas} sub={`${pct(errTot.televentas, total)}% de los casos`} />
       <Kpi color={COLORES.chofer} t="Error del chofer" v={errTot.chofer} sub={`${pct(errTot.chofer, total)}% de los casos`} />
-      <Kpi color={COLORES.otros} t="Sin error de personas" v={distrib[5].value} sub="almacén, calidad u otros" /></Kpis>
+      <Kpi color={COLORES.almacen} t="Error de almacén" v={errTot.almacen} sub={`${pct(errTot.almacen, total)}% de los casos`} />
+      <Kpi color={COLORES.pima} t="Error de PIMA" v={errTot.pima} sub={`${pct(errTot.pima, total)}% de los casos`} />
+      <Kpi color={COLORES.otros} t="Sin error marcado" v={distrib.find((x: any) => x.label === 'Sin error marcado')?.value ?? 0} sub="calidad u otras causas" /></Kpis>
     <Box title="Distribución de los casos según el error atribuido" color={COLORES.mal}><StackBar items={distrib} />
-      <Nota>Cada caso cuenta una sola vez: si tiene dos o más responsables aparece en “Más de uno”. Las tarjetas de arriba sí cuentan cada marca por separado.</Nota></Box>
+      <Nota>Cada caso cuenta una sola vez: si tiene dos o más responsables aparece en “Más de uno”. Las tarjetas de arriba sí cuentan cada marca por separado. Almacén y PIMA son áreas, no personas: no tienen ranking individual.</Nota></Box>
 
     <H color={COLORES.ventas}>Responsables: quién envía más casos y quién se equivoca más</H>
     <div className="flex flex-wrap items-center gap-2 mb-3 no-print"><span className="text-xs text-slate-500">Ordenar por:</span>{pill('errores', 'Más errores')}{pill('casos', 'Más casos enviados')}</div>
@@ -74,13 +77,13 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       <Box title="Choferes con más incidencias propias (error del chofer)" color="#dc2626"><Rank items={[...choferesDet].filter((x: any) => x.propio > 0).sort((a: any, b: any) => b.propio - a.propio || b.pctPropio - a.pctPropio).slice(0, 8).map((x: any) => ({ name: `${x.name} · ${x.pctPropio}% de sus reportes`, value: x.propio, color: '#dc2626' }))} total={errTot.chofer} />
         <Nota>Solo cuentan los casos marcados con “Error del chofer”. {sinAtribuir.chofer > 0 ? `${sinAtribuir.chofer} casos marcados no tienen chofer asignado.` : ''}</Nota></Box></Grid>
     <Box title="¿Por qué reporta cada chofer? Causa de sus reportes" color={COLORES.chofer}>
-      <Tbl color={COLORES.chofer} cols={['Chofer', 'Reportes', 'Error suyo', '% suyo', 'Por vendedor', 'Por cliente', 'Por televentas', 'Sin error de personas', 'Distribución', 'Canastas recup.']} rows={choferesDet.slice(0, 12).map((x: any) => [x.name, <b key="r">{x.reportes}</b>,
+      <Tbl color={COLORES.chofer} cols={['Chofer', 'Reportes', 'Error suyo', '% suyo', 'Por vendedor', 'Por cliente', 'Por televentas', 'Por almacén', 'Por PIMA', 'Sin error marcado', 'Distribución', 'Canastas recup.']} rows={choferesDet.slice(0, 12).map((x: any) => [x.name, <b key="r">{x.reportes}</b>,
         <b key="p" style={{ color: '#dc2626' }}>{x.propio}</b>, <span key="pp" className={x.reportes < 3 ? 'text-slate-500' : x.pctPropio >= 50 ? 'text-red-600 font-semibold' : x.pctPropio >= 25 ? 'text-amber-600 font-semibold' : 'text-emerald-600'}>{x.pctPropio}%</span>,
-        x.porVend, x.porCli, x.porTele, x.sinPersona,
-        <MiniBar key="m" parts={[{ v: x.ex.chofer, c: COLORES.chofer, t: 'Solo error del chofer' }, { v: x.ex.ventas, c: COLORES.ventas, t: 'Solo error de ventas' }, { v: x.ex.cliente, c: COLORES.cliente, t: 'Solo error del cliente' }, { v: x.ex.televentas, c: COLORES.televentas, t: 'Solo error de televentas' }, { v: x.ex.varios, c: COLORES.mal, t: 'Más de un responsable' }, { v: x.ex.ninguno, c: '#cbd5e1', t: 'Sin error de personas' }]} />,
+        x.porVend, x.porCli, x.porTele, x.porAlm, x.porPima, x.sinPersona,
+        <MiniBar key="m" parts={[{ v: x.ex.chofer, c: COLORES.chofer, t: 'Solo error del chofer' }, { v: x.ex.ventas, c: COLORES.ventas, t: 'Solo error de ventas' }, { v: x.ex.cliente, c: COLORES.cliente, t: 'Solo error del cliente' }, { v: x.ex.televentas, c: COLORES.televentas, t: 'Solo error de televentas' }, { v: x.ex.almacen, c: COLORES.almacen, t: 'Solo error de almacén' }, { v: x.ex.pima, c: COLORES.pima, t: 'Solo error de PIMA' }, { v: x.ex.varios, c: COLORES.mal, t: 'Más de un responsable' }, { v: x.ex.ninguno, c: '#cbd5e1', t: 'Sin error marcado' }]} />,
         x.ent ? `${x.pctRec}%` : '—'])} />
-      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3 text-xs text-slate-600">{[['Error del chofer', COLORES.chofer], ['Ventas', COLORES.ventas], ['Cliente', COLORES.cliente], ['Televentas', COLORES.televentas], ['Más de uno', COLORES.mal], ['Sin error de personas', '#cbd5e1']].map(([l, c]) => <span key={l} className="flex items-center gap-1.5"><i className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: c }} />{l}</span>)}</div>
-      <Nota>Las columnas cuentan cada marca por separado (un reporte con dos responsables suma en ambas); la barra cuenta cada reporte una sola vez. “Sin error de personas” = causa de almacén, calidad u otra.</Nota></Box>
+      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3 text-xs text-slate-600">{[['Error del chofer', COLORES.chofer], ['Ventas', COLORES.ventas], ['Cliente', COLORES.cliente], ['Televentas', COLORES.televentas], ['Almacén', COLORES.almacen], ['PIMA', COLORES.pima], ['Más de uno', COLORES.mal], ['Sin error marcado', '#cbd5e1']].map(([l, c]) => <span key={l} className="flex items-center gap-1.5"><i className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: c }} />{l}</span>)}</div>
+      <Nota>Las columnas cuentan cada marca por separado (un reporte con dos responsables suma en ambas); la barra cuenta cada reporte una sola vez. “Sin error marcado” = calidad u otra causa sin responsable marcado.</Nota></Box>
 
     <H color={COLORES.naranja}>Diagnóstico: ¿de dónde vienen las devoluciones?</H>
     <Grid>

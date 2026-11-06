@@ -26,7 +26,7 @@ export const semana = (d: string) => { const t = new Date(d + 'T00:00:00Z'); t.s
 export const opts = (rows: any[] | null, f: (x: any) => string) => (rows || []).map(x => [x.id, f(x)])
 
 export const T = ({ children }: { children: React.ReactNode }) => <h1 className="text-2xl font-semibold text-belca-navy mb-5">{children}</h1>
-export const COLORES = { ventas: '#2563eb', televentas: '#7c3aed', chofer: '#0d9488', cliente: '#d97706', otros: '#64748b', ok: '#16a34a', mal: '#dc2626', navy: '#0b1e38', naranja: '#F39C1F' }
+export const COLORES = { ventas: '#2563eb', televentas: '#7c3aed', chofer: '#0d9488', almacen: '#be185d', pima: '#0891b2', cliente: '#d97706', otros: '#64748b', ok: '#16a34a', mal: '#dc2626', navy: '#0b1e38', naranja: '#F39C1F' }
 export const AREA_COLOR: Record<string, string> = { ventas: '#2563eb', logistica: '#0d9488', almacen: '#7c3aed', calidad: '#db2777', cliente: '#d97706', investigar: '#64748b' }
 export const GRAD = { navy: 'linear-gradient(135deg,#0b1e38,#24467a)', ok: 'linear-gradient(135deg,#064e3b,#059669)', warn: 'linear-gradient(135deg,#92400e,#d97706)', bad: 'linear-gradient(135deg,#7f1d1d,#dc2626)', teal: 'linear-gradient(135deg,#134e4a,#0d9488)', violet: 'linear-gradient(135deg,#4c1d95,#7c3aed)' }
 export const Kpi = ({ t, v, sub, delta, good, hero, unit = '%', tone, bg, color }: { t: string; v: any; sub?: string; delta?: number | null; good?: 'up' | 'down'; hero?: boolean; unit?: string; tone?: 'ok' | 'warn' | 'bad'; bg?: string; color?: string }) => {
@@ -55,7 +55,7 @@ export const StackBar = ({ items }: { items: { label: string; value: number; col
 export const MiniBar = ({ parts }: { parts: { v: number; c: string; t: string }[] }) => { const tot = parts.reduce((a, x) => a + x.v, 0) || 1
   return <div className="flex h-3 w-36 rounded overflow-hidden bg-slate-100">{parts.filter(p => p.v > 0).map(p => <div key={p.t} title={`${p.t}: ${p.v}`} style={{ width: `${(100 * p.v) / tot}%`, background: p.c }} />)}</div> }
 export const Errores = ({ r }: { r: any }) => {
-  const f: [string, string, string][] = [['error_cliente', 'Cliente', COLORES.cliente], ['error_ventas', 'Ventas', COLORES.ventas], ['error_televentas', 'Televentas', COLORES.televentas], ['error_chofer', 'Chofer', COLORES.chofer]]
+  const f: [string, string, string][] = [['error_cliente', 'Cliente', COLORES.cliente], ['error_ventas', 'Ventas', COLORES.ventas], ['error_televentas', 'Televentas', COLORES.televentas], ['error_chofer', 'Chofer', COLORES.chofer], ['error_almacen', 'Almacén', COLORES.almacen], ['error_pima', 'PIMA', COLORES.pima]]
   const on = f.filter(x => r?.[x[0]])
   return on.length ? <div className="flex flex-wrap gap-1">{on.map(x => <span key={x[0]} className="px-2 py-0.5 rounded-full text-[11px] font-semibold text-white whitespace-nowrap" style={{ background: x[2] }}>{x[1]}</span>)}</div> : <span className="text-slate-300">—</span>
 }
