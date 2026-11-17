@@ -42,7 +42,7 @@ export default async function Semanal({ searchParams }: { searchParams: Promise<
       <Kpi hero bg={GRAD.teal} t="Monto recuperado" v={fmt(recup)} delta={delta(recup, pRecup)} good="up" sub={`de ${fmt(perd)} en pérdidas`} /></div>
     {!!insights.length && <Box title="Lectura rápida" color={COLORES.naranja} cls="mt-4"><ul className="space-y-1.5 text-sm text-slate-700 list-disc pl-5">{insights.map((x: string, i: number) => <li key={i}>{md(x)}</li>)}</ul></Box>}
 
-    <H color={COLORES.mal}>¿Quién se equivocó esta semana?</H>
+    <H color={COLORES.mal}>Errores atribuidos esta semana</H>
     <Box color={COLORES.mal}><StackBar items={distrib} />
       <p className="text-xs text-slate-500 mt-3">Cliente {errTot.cliente} · Ventas {errTot.ventas} · Televentas {errTot.televentas} · Chofer {errTot.chofer} · Almacén {errTot.almacen} · PIMA {errTot.pima} (un caso puede tener más de un responsable).</p></Box>
 
@@ -58,8 +58,8 @@ export default async function Semanal({ searchParams }: { searchParams: Promise<
       <Box title="Choferes que más reportan" color={COLORES.chofer}><Tbl color={COLORES.chofer} cols={['Chofer', 'Reportes', 'Error suyo', 'Por otros']} rows={choferesDet.slice(0, 5).map((x: any) => [x.name, <b key="r">{x.reportes}</b>, <b key="p" style={{ color: '#dc2626' }}>{x.propio}</b>, x.reportes - x.propio])} /></Box></Grid>
 
     <H color={COLORES.mal}>Casos críticos y pendientes</H>
-    <Box title={`Casos críticos de la semana · ${crit.length}`} color={COLORES.mal}>{crit.length ? <Tbl cols={['Caso', 'Cliente', 'Motivo', 'Estado', 'Valor']} rows={crit.slice(0, 10).map((r: any) => [<Link key="n" href={`/casos/${r.id}`} className="underline text-belca-navy font-medium">{r.numero}</Link>, cliTxt(r.clientes), motLabel(r.motivos_devolucion), <Badge key="e">{ESTADOS[r.estado]}</Badge>, fmt(r.monto)])} /> : <p className="text-sm text-emerald-700">✔ Sin casos críticos esta semana.</p>}</Box>
+    <Box title={`Casos críticos de la semana · ${crit.length}`} color={COLORES.mal}>{crit.length ? <Tbl cols={['Caso', 'Cliente', 'Motivo', 'Estado', 'Valor']} rows={crit.slice(0, 10).map((r: any) => [<Link key="n" href={`/casos/${r.id}?${new URLSearchParams({volver:"/semanal?"+new URLSearchParams({semana:lunes,nota})})}`} className="underline text-belca-navy font-medium">{r.numero}</Link>, cliTxt(r.clientes), motLabel(r.motivos_devolucion), <Badge key="e">{ESTADOS[r.estado]}</Badge>, fmt(r.monto)])} /> : <p className="text-sm text-emerald-700">✔ Sin casos críticos esta semana.</p>}</Box>
     <Kpis><Kpi color="#d97706" t="Abiertos hoy" v={abiertos} /><Kpi color="#64748b" t="Por investigar" v={porInvestigar.length} /><Kpi color="#2563eb" t="Canastas entregadas" v={fmt(kEnt)} /><Kpi color="#16a34a" t="Canastas recuperadas" v={`${pct(kRec, kEnt)}%`} /><Kpi color="#dc2626" t="Canastas pendientes" v={fmt(kPend)} /></Kpis>
-    <Box title="Casos abiertos con más antigüedad (al día de hoy)" color="#64748b"><Tbl cols={['Caso', 'Cliente', 'Motivo', 'Estado']} rows={viejos.slice(0, 5).map((v: any) => [<Link key="n" href={`/casos/${v.id}`} className="underline text-belca-navy font-medium">{v.numero}</Link>, cliTxt(v.clientes), motLabel(v.motivos_devolucion), <Badge key="e">{ESTADOS[v.estado]}</Badge>])} /></Box>
+    <Box title="Casos abiertos con más antigüedad (al día de hoy)" color="#64748b"><Tbl cols={['Caso', 'Cliente', 'Motivo', 'Estado']} rows={viejos.slice(0, 5).map((v: any) => [<Link key="n" href={`/casos/${v.id}?${new URLSearchParams({volver:"/semanal?"+new URLSearchParams({semana:lunes,nota})})}`} className="underline text-belca-navy font-medium">{v.numero}</Link>, cliTxt(v.clientes), motLabel(v.motivos_devolucion), <Badge key="e">{ESTADOS[v.estado]}</Badge>])} /></Box>
   </div>
 }

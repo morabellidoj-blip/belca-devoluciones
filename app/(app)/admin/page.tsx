@@ -9,12 +9,18 @@ export const maxDuration = 60
 const guard = async () => { const c = await ctx(); if (!c.admin) throw new Error('Solo administradores'); return c }
 async function crearUsuario(fd: FormData) {
   'use server'; await guard()
-  const { error } = await adminClient().auth.admin.createUser({ email: g(fd, 'email')!, password: g(fd, 'password')!, email_confirm: true, user_metadata: { nombre: g(fd, 'nombre'), rol: g(fd, 'rol') || 'gestor' } })
-  if (error) throw new Error(error.message); revalidatePath('/admin')
+  const ac = adminClient()
+  const rol = g(fd, 'rol') || 'gestor'
+  if (!['admin','gestor','consulta'].includes(rol)) throw new Error('Rol no válido')
+  const { data, error } = await ac.auth.admin.createUser({ email: g(fd, 'email')!, password: g(fd, 'password')!, email_confirm: true, user_metadata: { nombre: g(fd, 'nombre'), rol: g(fd, 'rol') || 'gestor' } })
+  if (error) throw new Error(error.message)
+  const { error: perfilError } = await ac.from('profiles').update({ rol, activo:true }).eq('id', data.user.id)
+  if (perfilError) { await ac.auth.admin.deleteUser(data.user.id); throw new Error(perfilError.message) }
+  revalidatePath('/admin')
 }
 async function editarUsuario(fd: FormData) {
   'use server'; const { sb } = await guard()
-  await sb.from('profiles').update({ rol: g(fd, 'rol'), activo: fd.get('activo') === 'on', nombre: g(fd, 'nombre') }).eq('id', g(fd, 'id')); revalidatePath('/admin')
+  const {error} = await sb.from('profiles').update({ rol: g(fd, 'rol'), activo: fd.get('activo') === 'on', nombre: g(fd, 'nombre') }).eq('id', g(fd, 'id')); if(error) throw new Error(error.message); revalidatePath('/admin')
 }
 async function importar(fd: FormData) {
   'use server'; const { sb } = await guard()
@@ -90,8 +96,8 @@ export default async function Admin({ searchParams }: { searchParams: Promise<an
   const [{ data: us }, { data: cf }, { count: nc }, ru, ve, mo, ch, { data: aj }, { data: tv }] = await Promise.all([sb.from('profiles').select('*').order('nombre'), sb.from('config').select('*').order('clave'),
     sb.from('clientes').select('*', { count: 'exact', head: true }), sb.from('rutas').select('*').order('nombre'), sb.from('vendedores').select('*').order('nombre'), sb.from('motivos_devolucion').select('*').order('nombre'), sb.from('choferes').select('*').order('nombre'), sb.from('ajustes').select('clave,valor'), sb.from('televentas').select('*,vendedores(nombre)').order('nombre').limit(300)])
   const chk = async (t: string, c: string) => !(await sb.from(t).select(c).limit(1)).error
-  const inst = (await Promise.all([chk('choferes', 'id'), chk('ajustes', 'clave'), chk('televentas', 'id'), chk('casos', 'area'), chk('motivos_devolucion', 'permite_monto_cero'), chk('casos', 'error_ventas'), chk('casos', 'error_almacen')]))
-    .map((ok, i) => [['003_choferes.sql', 'Catálogo de choferes'], ['004_avisos_teams.sql', 'Avisos y Teams'], ['006_televentas_y_crear.sql', 'Televentas y crear catálogos'], ['008_areas_responsables.sql', 'Áreas responsables'], ['009_calidad_meta_resumen.sql', 'Calidad de datos, meta y resumen semanal'], ['011_errores_por_responsable.sql', 'Casillas de error por responsable'], ['012_error_almacen_pima.sql', 'Casillas de error de almacén y PIMA']].map(x => [...x, ok])[i])
+  const inst = (await Promise.all([chk('choferes', 'id'), chk('ajustes', 'clave'), chk('televentas', 'id'), chk('casos', 'area'), chk('motivos_devolucion', 'permite_monto_cero'), chk('casos', 'error_ventas'), chk('casos', 'error_almacen'), chk('casos','gestion_resumen')]))
+    .map((ok, i) => [['003_choferes.sql', 'Catálogo de choferes'], ['004_avisos_teams.sql', 'Avisos y Teams'], ['006_televentas_y_crear.sql', 'Televentas y crear catálogos'], ['008_areas_responsables.sql', 'Áreas responsables'], ['009_calidad_meta_resumen.sql', 'Calidad de datos, meta y resumen semanal'], ['011_errores_por_responsable.sql', 'Casillas de error por responsable'], ['012_error_almacen_pima.sql', 'Casillas de error de almacén y PIMA'], ['013 y 014','Usuarios de consulta y gestión profesional']].map(x => [...x, ok])[i])
   const A: Record<string, string> = Object.fromEntries((aj || []).map((x: any) => [x.clave, x.valor || '']))
   const sel = (A.teams_tipos || '').split(',')
   const lista = (tabla: string, rows: any[] | null) => <Box title={tabla.replace('_', ' ')}><div className="flex flex-wrap gap-2">{(rows || []).map(r =>
@@ -105,10 +111,10 @@ export default async function Admin({ searchParams }: { searchParams: Promise<an
       {inst.every(x => x[2]) ? <p className="text-sm text-emerald-700">✔ Todos los archivos SQL necesarios están aplicados.</p> : <p className="text-sm text-red-700 mb-2">Falta ejecutar en Supabase → SQL Editor los archivos marcados con ✘ (ábralos desde la carpeta supabase/migrations del proyecto).</p>}
       <ul className="text-sm space-y-1 mt-1">{inst.map(x => <li key={x[0] as string} className={x[2] ? 'text-slate-600' : 'text-red-700 font-semibold'}>{x[2] ? '✔' : '✘'} {x[0]} <span className="font-normal text-slate-500">— {x[1]}</span></li>)}</ul></Box>
     <Box title="Usuarios"><Tbl cols={['Nombre', 'Rol', 'Activo', '']} rows={(us || []).map((u: any) => [<form key="f" id={u.id} action={editarUsuario} className="contents"><input type="hidden" name="id" value={u.id} /><input name="nombre" defaultValue={u.nombre} className="inp" /></form>,
-      <select key="r" form={u.id} name="rol" defaultValue={u.rol} className="inp"><option value="gestor">Gestor</option><option value="admin">Administrador</option></select>,
+      <select key="r" form={u.id} name="rol" defaultValue={u.rol} className="inp"><option value="consulta">Consulta / gerencia</option><option value="gestor">Gestor</option><option value="admin">Administrador</option></select>,
       <input key="a" form={u.id} type="checkbox" name="activo" defaultChecked={u.activo} />, <button key="b" form={u.id} className="btn">Guardar</button>])} />
-      <form action={crearUsuario} className="grid sm:grid-cols-5 gap-2 items-end mt-4"><I n="nombre" l="Nombre" req /><I n="email" l="Correo" type="email" req /><I n="password" l="Contraseña (mín. 6)" req />
-        <S n="rol" l="Rol" def="gestor" o={[['gestor', 'Gestor de devoluciones'], ['admin', 'Administrador']]} /><B>Crear usuario</B></form></Box>
+      <form action={crearUsuario} className="grid sm:grid-cols-5 gap-2 items-end mt-4"><I n="nombre" l="Nombre" req /><I n="email" l="Correo" type="email" req /><I n="password" l="Contraseña (mín. 6)" type="password" req />
+        <S n="rol" l="Rol" def="gestor" o={[['gestor', 'Gestor de devoluciones'], ['consulta', 'Consulta / gerencia'], ['admin', 'Administrador']]} /><B>Crear usuario</B></form></Box>
     <Grid>{lista('rutas', ru.data)}{lista('vendedores', ve.data)}{lista('choferes', ch.data)}{lista('motivos_devolucion', mo.data)}
       <Box title={`Importar catálogos (clientes: ${nc})`}><form action={importar} className="grid gap-2"><S n="tabla" l="Catálogo" req o={[['clientes', 'Clientes'], ['choferes', 'Choferes'], ['televentas', 'Televentas'], ['rutas', 'Rutas'], ['vendedores', 'Vendedores'], ['motivos_devolucion', 'Motivos']]} />
         <label className="text-sm">Pegue desde Excel, sin encabezados. Clientes: 2 columnas (<code>código, nombre</code>). Motivos: 2 columnas (<code>código, nombre</code>). Televentas: 4 columnas (<code>nombre, número, correo, vendedor</code>; si el vendedor no existe se crea). Choferes, vendedores y rutas: 1 columna con el nombre.<textarea name="lineas" rows={6} className="inp mt-1 font-mono text-xs" required /></label><B>Importar</B></form></Box></Grid>

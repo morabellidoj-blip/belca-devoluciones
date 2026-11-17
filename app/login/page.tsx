@@ -8,7 +8,11 @@ export default function Login() {
   async function submit(e: React.FormEvent) {
     e.preventDefault()
     const { error } = await supabaseBrowser().auth.signInWithPassword({ email, password })
-    if (error) setErr('Credenciales inválidas'); else { router.replace('/dashboard'); router.refresh() }
+    if (error) { setErr('Credenciales inválidas'); return }
+    const sb=supabaseBrowser(); const {data:{user}}=await sb.auth.getUser()
+    const {data:p}=await sb.from('profiles').select('activo').eq('id',user!.id).single()
+    if (!p?.activo) { await sb.auth.signOut(); setErr('Usuario inactivo o sin perfil. Contacte al administrador.'); return }
+    router.replace('/informe'); router.refresh()
   }
   return (
     <main className="min-h-screen grid place-items-center bg-[#0B1F3F] p-4">

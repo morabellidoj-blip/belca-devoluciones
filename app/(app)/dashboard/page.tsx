@@ -10,8 +10,8 @@ const md = (s: string) => s.split('**').map((t, i) => (i % 2 ? <b key={i}>{t}</b
 const Nota = ({ children }: { children: React.ReactNode }) => <p className="text-xs text-slate-500 mt-3">{children}</p>
 export default async function Dashboard({ searchParams }: { searchParams: Promise<any> }) {
   const sp0 = await searchParams
-  const { sb, admin } = await ctx()
-  await sb.rpc('generar_alertas')
+  const { sb, admin, puedeEditar } = await ctx()
+  if (puedeEditar) await sb.rpc('generar_alertas')
   const [datos, c, { data: gest }] = await Promise.all([cargar(sb, sp0), cat(sb), sb.from('profiles').select('id,nombre').eq('activo', true)])
   const m = calcular(datos)
   const { sp, todo, R, K, rec, viejos, H0, total, cerr, abiertos, pend, gestionadas, hrs, valor, pValor, recup, perd, pRecup, efect, pTotal, pEfect, kEnt, kRec, kPend, kPerd, cierre, periodo, insights, porArea, pareto, porInvestigar,
@@ -25,7 +25,8 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   const dias = (iso: string) => Math.floor((Date.now() - +new Date(iso)) / 864e5)
   const ordenar = (a: any[]) => [...a].sort(orden === 'casos' ? (x, y) => y.casos - x.casos || y.errores - x.errores : (x, y) => y.errores - x.errores || y.pctErr - x.pctErr || y.casos - x.casos).slice(0, 8)
   const pc = (x: any) => <span key="p" className={x.casos < 3 ? 'text-slate-500' : x.pctErr >= 50 ? 'text-red-600 font-semibold' : x.pctErr >= 25 ? 'text-amber-600 font-semibold' : 'text-emerald-600'}>{x.pctErr}%</span>
-  const fila = (x: any, col: string) => [x.name, <b key="c">{x.casos}</b>, <b key="e" style={{ color: col }}>{x.errores}</b>, pc(x), fmt(x.valorErr)]
+  const linkPersona = (x:any, campo:string, error?:string) => {const q=new URLSearchParams(qs);q.set(campo,campo==='chofer'?x.name:x.id);if(error)q.set('error',error);return '/informe?'+q}
+  const fila = (x: any, col: string, campo:string, error:string) => [<Link key="n" href={linkPersona(x,campo)} className="underline text-belca-navy">{x.name}</Link>, <b key="c">{x.casos}</b>, <Link key="e" href={linkPersona(x,campo,error)} className="underline font-bold" style={{color:col}}>{x.errores}</Link>, pc(x), fmt(x.valorErr)]
   const pill = (o: string, t: string) => <Link key={o} href={linkOrden(o)} className={`px-3 py-1 rounded-full text-xs font-semibold border ${orden === o ? 'bg-belca-navy text-white border-belca-navy' : 'text-belca-navy border-slate-300 hover:bg-slate-50'}`}>{t}</Link>
   const tone = !total ? undefined : efect >= meta ? 'ok' : efect >= 60 ? 'warn' : 'bad'
   return <div>
@@ -45,7 +46,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       <Kpi hero bg={GRAD.violet} t="% Recuperación económica" v={`${pct(recup, perd)}%`} sub={`No recuperado ${fmt(perd - recup)}`} /></div>
     {!!insights.length && <Box title="Lectura rápida" color={COLORES.naranja} cls="mt-4"><ul className="space-y-1.5 text-sm text-slate-700 list-disc pl-5">{insights.map((x: string, i: number) => <li key={i}>{md(x)}</li>)}</ul></Box>}
 
-    <H color={COLORES.mal}>¿Quién se equivoca? Errores marcados por tipo</H>
+    <H color={COLORES.mal}>Errores atribuidos por tipo de responsable</H>
     <Kpis>
       <Kpi color={COLORES.cliente} t="Error del cliente" v={errTot.cliente} sub={`${pct(errTot.cliente, total)}% de los casos`} />
       <Kpi color={COLORES.ventas} t="Error de ventas" v={errTot.ventas} sub={`${pct(errTot.ventas, total)}% de los casos`} />
@@ -57,16 +58,16 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
     <Box title="Distribución de los casos según el error atribuido" color={COLORES.mal}><StackBar items={distrib} />
       <Nota>Cada caso cuenta una sola vez: si tiene dos o más responsables aparece en “Más de uno”. Las tarjetas de arriba sí cuentan cada marca por separado. Almacén y PIMA son áreas, no personas: no tienen ranking individual.</Nota></Box>
 
-    <H color={COLORES.ventas}>Responsables: quién envía más casos y quién se equivoca más</H>
+    <H color={COLORES.ventas}>Responsables: quién envía más casos y quién tiene más errores atribuidos</H>
     <div className="flex flex-wrap items-center gap-2 mb-3 no-print"><span className="text-xs text-slate-500">Ordenar por:</span>{pill('errores', 'Más errores')}{pill('casos', 'Más casos enviados')}</div>
     <Grid>
-      <Box title={`Vendedores · ${actores.vend.length}`} color={COLORES.ventas}><Tbl color={COLORES.ventas} cols={['Vendedor', 'Casos', 'Errores', '% error', 'Valor del error']} rows={ordenar(actores.vend).map(x => fila(x, COLORES.ventas))} />
+      <Box title={`Vendedores · ${actores.vend.length}`} color={COLORES.ventas}><Tbl color={COLORES.ventas} cols={['Vendedor', 'Casos', 'Errores', '% error', 'Valor del error']} rows={ordenar(actores.vend).map(x => fila(x, COLORES.ventas,'vendedor_id','error_ventas'))} />
         {sinAtribuir.ventas > 0 && <Nota>{sinAtribuir.ventas} casos con “Error de ventas” no tienen vendedor y no se cuentan a nadie. Corríjalos en Calidad de datos.</Nota>}</Box>
-      <Box title={`Televentas · ${actores.tele.length}`} color={COLORES.televentas}><Tbl color={COLORES.televentas} cols={['Televenta', 'Casos', 'Errores', '% error', 'Valor del error']} rows={ordenar(actores.tele).map(x => fila(x, COLORES.televentas))} />
+      <Box title={`Televentas · ${actores.tele.length}`} color={COLORES.televentas}><Tbl color={COLORES.televentas} cols={['Televenta', 'Casos', 'Errores', '% error', 'Valor del error']} rows={ordenar(actores.tele).map(x => fila(x, COLORES.televentas,'televenta_id','error_televentas'))} />
         {sinAtribuir.televentas > 0 && <Nota>{sinAtribuir.televentas} casos con “Error de televentas” no tienen televenta asignada.</Nota>}</Box>
       <Box title={`Choferes · ${actores.cho.length}`} color={COLORES.chofer}><Tbl color={COLORES.chofer} cols={['Chofer', 'Casos', 'Errores', '% error', 'Canastas', '% recup.']} rows={ordenar(actores.cho).map(x => [x.name, <b key="c">{x.casos}</b>, <b key="e" style={{ color: COLORES.chofer }}>{x.errores}</b>, pc(x), x.ent ? fmt(x.ent) : '—', x.ent ? `${x.pctRec}%` : '—'])} />
         {sinAtribuir.chofer > 0 && <Nota>{sinAtribuir.chofer} casos con “Error del chofer” no tienen chofer asignado.</Nota>}</Box>
-      <Box title={`Clientes · ${actores.cli.length}`} color={COLORES.cliente}><Tbl color={COLORES.cliente} cols={['Cliente', 'Casos', 'Errores', '% error', 'Valor del error', '']} rows={ordenar(actores.cli).map(x => [...fila(x, COLORES.cliente), x.casos >= 3 ? <Badge key="r">Reincidente</Badge> : ''])} />
+      <Box title={`Clientes · ${actores.cli.length}`} color={COLORES.cliente}><Tbl color={COLORES.cliente} cols={['Cliente', 'Casos', 'Errores', '% error', 'Valor del error', '']} rows={ordenar(actores.cli).map(x => [...fila(x, COLORES.cliente,'cliente_id','error_cliente'), x.casos >= 3 ? <Badge key="r">Reincidente</Badge> : ''])} />
         {sinAtribuir.cliente > 0 && <Nota>{sinAtribuir.cliente} casos con “Error del cliente” no tienen cliente asignado.</Nota>}</Box></Grid>
     <Nota>“Casos” = devoluciones asociadas a esa persona; “Errores” = las marcadas como error suyo. El % de error es sobre sus propios casos (en rojo desde 50% y en ámbar desde 25%, solo con 3 o más casos). Todavía no se compara contra sus ventas: eso requiere cargar el volumen de ventas.</Nota>
 
@@ -101,7 +102,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       <Nota>Causas internas = ventas, logística, almacén y calidad. Atacar estos motivos es lo que más reduce las pérdidas; las causas del cliente no se pueden corregir desde adentro.</Nota></Box>
 
     <H color="#64748b">Por investigar</H>
-    <Box color="#64748b"><Tbl cols={['Caso', 'Cliente', 'Motivo', 'Días abiertos', 'Valor']} rows={porInvestigar.slice(0, 8).map((x: any) => [<Link key="n" href={`/casos/${x.id}`} className="underline text-belca-navy font-medium">{x.numero}</Link>, cliTxt(x.clientes), motLabel(x.motivos_devolucion), dias(x.created_at), fmt(x.monto)])} />
+    <Box color="#64748b"><Tbl cols={['Caso', 'Cliente', 'Motivo', 'Días abiertos', 'Valor']} rows={porInvestigar.slice(0, 8).map((x: any) => [<Link key="n" href={`/casos/${x.id}?${new URLSearchParams({volver:"/dashboard?"+qs})}`} className="underline text-belca-navy font-medium">{x.numero}</Link>, cliTxt(x.clientes), motLabel(x.motivos_devolucion), dias(x.created_at), fmt(x.monto)])} />
       <Nota>{porInvestigar.length ? `${porInvestigar.length} casos abiertos sin área definida. Al concluir la investigación, abra el caso y cambie el área responsable.` : 'No hay casos pendientes de investigación en este período.'}</Nota></Box>
 
     <H color={COLORES.ventas}>Devoluciones</H>
@@ -119,7 +120,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
 
     <H color={COLORES.mal}>Atención requerida</H>
     <Box title="Casos abiertos con más antigüedad" color={COLORES.mal}><Tbl cols={['Caso', 'Cliente', 'Motivo', 'Estado', 'Días abiertos']} rows={viejos.map((v: any) => [
-      <Link key="n" href={`/casos/${v.id}`} className="underline text-belca-navy font-medium">{v.numero}</Link>, cliTxt(v.clientes), motLabel(v.motivos_devolucion), <Badge key="e">{ESTADOS[v.estado]}</Badge>,
+      <Link key="n" href={`/casos/${v.id}?${new URLSearchParams({volver:"/dashboard?"+qs})}`} className="underline text-belca-navy font-medium">{v.numero}</Link>, cliTxt(v.clientes), motLabel(v.motivos_devolucion), <Badge key="e">{ESTADOS[v.estado]}</Badge>,
       <span key="d" className={dias(v.created_at) >= 2 ? 'text-red-600 font-semibold' : ''}>{dias(v.created_at)}</span>])} /></Box>
 
     <H>Tendencias</H>

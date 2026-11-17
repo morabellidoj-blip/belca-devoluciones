@@ -1,3 +1,7 @@
+# Versión ampliada: gestión profesional de devoluciones
+
+Para actualizar una instalación existente, abra primero **ACTUALIZACION_GESTION.md**. Incluye los pasos para instalar 013 y 014, los usuarios de consulta y el nuevo informe. No ejecute el esquema inicial sobre una base existente.
+
 # Belca · Devoluciones, Canastas y Recuperación — Guía desde cero
 
 No necesita instalar programas. Solo un navegador y 3 cuentas gratuitas.
@@ -14,7 +18,7 @@ Tiempo estimado: 30–40 minutos. Siga los pasos en orden.
 3. Abra el archivo `supabase/migrations/001_schema.sql` de este zip con el Bloc de notas, copie TODO, péguelo en Supabase y pulse **Run**. Debe decir "Success". Luego haga lo mismo, en este orden, con `002_unificar_llamadas.sql` (carga también los 23 motivos), `003_choferes.sql`, `004_avisos_teams.sql`, `006_televentas_y_crear.sql`, `007_casos_sin_cliente.sql`, `008_areas_responsables.sql`, `009_calidad_meta_resumen.sql`, `011_errores_por_responsable.sql` y `012_error_almacen_pima.sql`. Si ya activó pg_cron (archivo 005), ejecute también `010_programar_resumen_semanal.sql` para el resumen semanal a Teams. Por último ejecute `005_programar_alertas.sql` para que las alertas se revisen cada 30 minutos aunque nadie tenga la app abierta (si da error, active la extensión en Database → Extensions → pg_cron y repita).
 4. Menú **Authentication → Users → Add user → Create new user**: ponga su correo y una contraseña, y marque **Auto Confirm User**.
 5. Vuelva a **SQL Editor** → New query, ejecute (cambie el correo por el suyo):
-   `update profiles set rol='admin' where id=(select id from auth.users where email='SU_CORREO');`
+   `update profiles set rol='admin', activo=true where id=(select id from auth.users where email='SU_CORREO');`
 6. Menú **Project Settings (engranaje) → API Keys / Data API**. Copie y guarde en un bloc de notas:
    - **Project URL** (https://xxxx.supabase.co)
    - **anon / publishable key** (clave pública)

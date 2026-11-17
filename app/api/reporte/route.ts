@@ -1,3 +1,4 @@
+import { distribuirPerdida } from '@/lib/economia'
 import * as XLSX from 'xlsx'
 import { cliTxt } from '@/lib/ui'
 import { motLabel } from '@/lib/ui'
@@ -7,7 +8,7 @@ import { all } from '@/lib/data'
 import { supabaseServer } from '@/lib/supabase/server'
 import { grp, ESTADOS, TIPOS_REC, horaCR } from '@/lib/ui'
 export const dynamic = 'force-dynamic'
-const rg = (q: any, col: string, d: string | null, h: string | null) => { if (d) q = q.gte(col, d); if (h) q = q.lte(col, h); return all(q) }
+const rg = (q: any, col: string, d: string | null, h: string | null) => { if (d) q = q.gte(col, col==='created_at'?d+'T00:00:00-06:00':d); if (h) q = q.lte(col, col==='created_at'?h+'T23:59:59.999999-06:00':h); return all(q) }
 export async function GET(req: Request) {
   const u = new URL(req.url); const tipo = u.searchParams.get('tipo') || 'abiertos', fmt = u.searchParams.get('fmt') || 'xlsx'
   const d = u.searchParams.get('desde') || null, h = u.searchParams.get('hasta') || null
@@ -25,7 +26,7 @@ export async function GET(req: Request) {
   else if (tipo === 'por_televenta') rows = resumen(await casos(), c => c.televentas?.nombre)
   else if (tipo === 'por_ruta') rows = resumen(await casos(), c => c.rutas?.nombre)
   else if (tipo === 'por_motivo') rows = resumen(await casos(), c => motLabel(c?.motivos_devolucion))
-  else if (tipo === 'recuperacion') rows = ((await rg(sb.from('recuperaciones').select('created_at,tipo,monto_perdida,monto_recuperado,clientes(codigo,nombre),casos(numero,rutas(nombre),motivos_devolucion(codigo,nombre))').limit(10000), 'created_at', d, h)).data || [])
+  else if (tipo === 'recuperacion') rows = distribuirPerdida((await rg(sb.from('recuperaciones').select('id,caso_id,created_at,tipo,monto_perdida,monto_recuperado,clientes(codigo,nombre),casos(numero,rutas(nombre),motivos_devolucion(codigo,nombre))').limit(10000), 'created_at', d, h)).data || [])
     .map((r: any) => ({ Fecha: r.created_at.slice(0, 10), Caso: r.casos?.numero, Cliente: cliTxt(r?.clientes), Ruta: r.casos?.rutas?.nombre, Motivo: motLabel(r.casos?.motivos_devolucion), Tipo: TIPOS_REC[r.tipo], Pérdida: Number(r.monto_perdida), Recuperado: Number(r.monto_recuperado) }))
   else if (tipo === 'canastas') rows = ((await rg(sb.from('canastas').select('*,clientes(codigo,nombre),rutas(nombre),vendedores(nombre)').limit(10000), 'fecha', d, h)).data || [])
     .map((r: any) => ({ Fecha: r.fecha, Cliente: cliTxt(r?.clientes), Ruta: r.rutas?.nombre, Vendedor: r.vendedores?.nombre, Chofer: r.chofer, Tipo: r.tipo_canasta, Entregada: r.entregada, Recuperada: r.recuperada, Pendiente: r.pendiente, Estado: r.estado }))

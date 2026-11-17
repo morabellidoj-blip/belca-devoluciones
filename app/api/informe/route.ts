@@ -6,11 +6,13 @@ export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 export async function GET(req: Request) {
   const u = new URL(req.url); const fmt = u.searchParams.get('fmt') === 'pdf' ? 'pdf' : 'xlsx'
-  const sp0: any = {}; u.searchParams.forEach((v, k) => { if (['desde', 'hasta', 'cliente_id', 'estado', 'gestor_id', 'area', 'todo'].includes(k) && v) sp0[k] = v })
+  const sp0: any = {}; u.searchParams.forEach((v, k) => { if (['desde', 'hasta', 'cliente_id', 'estado', 'gestor_id', 'area', 'todo', 'vendedor_id', 'televenta_id', 'chofer', 'motivo_id', 'responsabilidad_estado', 'resultado_mercaderia', 'resultado_economico', 'error'].includes(k) && v) sp0[k] = v })
   const sb: any = await supabaseServer()
   const { data: { user } } = await sb.auth.getUser(); if (!user) return new Response('No autorizado', { status: 401 })
-  const m = calcular(await cargar(sb, sp0))
-  const { data: ab } = await all(sb.from('casos').select('numero,fecha,created_at,estado,monto,area,clientes(codigo,nombre),motivos_devolucion(codigo,nombre,area)').not('estado', 'in', '(resuelto,cerrado)').order('created_at'))
+  const datos=await cargar(sb,sp0)
+  if(datos.errorCasos) return new Response('No se pudo generar el informe: '+datos.errorCasos,{status:500})
+  const m = calcular(datos)
+  const ab=m.R.filter((c:any)=>!['resuelto','cerrado'].includes(c.estado)).sort((a:any,b:any)=>a.created_at.localeCompare(b.created_at))
   let logo: Buffer | null = null
   try { const r = await fetch(new URL('/logo.png', req.url)); if (r.ok) logo = Buffer.from(await r.arrayBuffer()) } catch {}
   const semanal = u.searchParams.get('semanal') === '1', nota = (u.searchParams.get('nota') || '').replace(/\s+/g, ' ').trim().slice(0, 700)

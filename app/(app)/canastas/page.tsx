@@ -1,6 +1,6 @@
 import { revalidatePath } from 'next/cache'
 import { cliTxt } from '@/lib/ui'
-import { all, ctx, cat, g, num, rango, subir } from '@/lib/data'
+import { escritura, all, ctx, cat, g, num, rango, subir } from '@/lib/data'
 import { Chart } from '@/lib/chart'
 import { Combo } from '@/lib/combo'
 import { NCLI, NRUT, NVEN, NCHO } from '@/lib/nuevos'
@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic'
 const estadoAuto = (est: string, ent: number, rec: number) => ['perdida', 'facturada'].includes(est) ? est : rec >= ent ? 'recuperada' : rec > 0 ? 'parcial' : 'pendiente'
 async function crear(fd: FormData) {
   'use server'
-  const { sb } = await ctx(); const ent = num(fd, 'entregada'), rec = Math.min(num(fd, 'recuperada'), ent)
+  const { sb } = await escritura(); const ent = num(fd, 'entregada'), rec = Math.min(num(fd, 'recuperada'), ent)
   const { data, error } = await sb.from('canastas').insert({ fecha: g(fd, 'fecha') || hoy(), cliente_id: g(fd, 'cliente_id'), ruta_id: g(fd, 'ruta_id'), vendedor_id: g(fd, 'vendedor_id'),
     chofer: g(fd, 'chofer'), tipo_canasta: g(fd, 'tipo_canasta'), entregada: ent, recuperada: rec, estado: estadoAuto(g(fd, 'estado') || 'pendiente', ent, rec), observaciones: g(fd, 'observaciones') }).select('id').single()
   if (error) throw new Error(error.message)
@@ -17,12 +17,12 @@ async function crear(fd: FormData) {
 }
 async function actualizar(fd: FormData) {
   'use server'
-  const { sb } = await ctx(); const ent = num(fd, 'entregada'), rec = Math.min(num(fd, 'recuperada'), ent)
+  const { sb } = await escritura(); const ent = num(fd, 'entregada'), rec = Math.min(num(fd, 'recuperada'), ent)
   await sb.from('canastas').update({ recuperada: rec, estado: estadoAuto(g(fd, 'estado') || 'pendiente', ent, rec) }).eq('id', g(fd, 'id')); revalidatePath('/canastas')
 }
-async function borrar(fd: FormData) { 'use server'; const { sb, admin } = await ctx(); if (admin) await sb.from('canastas').delete().eq('id', g(fd, 'id')); revalidatePath('/canastas') }
+async function borrar(fd: FormData) { 'use server'; const { sb, admin } = await escritura(); if (admin) await sb.from('canastas').delete().eq('id', g(fd, 'id')); revalidatePath('/canastas') }
 export default async function Canastas({ searchParams }: { searchParams: Promise<any> }) {
-  const sp = await searchParams; const { sb, admin } = await ctx()
+  const sp = await searchParams; const { sb, admin, puedeEditar } = await ctx()
   let q = rango(sb.from('canastas').select('*,clientes(nombre,codigo),rutas(nombre),vendedores(nombre)').order('fecha', { ascending: false }).limit(5000), 'fecha', sp)
   if (sp.cliente_id) q = q.eq('cliente_id', sp.cliente_id)
   const [{ data }, c] = await Promise.all([all(q), cat(sb)]); const R: any[] = data || []
@@ -41,14 +41,14 @@ export default async function Canastas({ searchParams }: { searchParams: Promise
       <Box title="Pendientes por cliente"><Chart data={top(grp(abiertas, r => cliTxt(r?.clientes), r => r.pendiente))} /></Box>
       <Box title="Pendientes por ruta"><Chart data={top(grp(abiertas, r => r.rutas?.nombre, r => r.pendiente))} /></Box>
       <Box title="Pendientes por vendedor"><Chart data={top(grp(abiertas, r => r.vendedores?.nombre, r => r.pendiente))} /></Box></Grid>
-    <Box title="Registrar canastas"><form action={crear} className="grid sm:grid-cols-3 gap-3">
+    {puedeEditar && <Box title="Registrar canastas"><form action={crear} className="grid sm:grid-cols-3 gap-3">
       <I n="fecha" l="Fecha" type="date" def={hoy()} /><Combo name="cliente_id" label="Cliente (escriba código o nombre)" required nuevo={NCLI} options={c.clientes.map((x: any) => [x.id, cliLabel(x)])} /><Combo name="ruta_id" label="Ruta" nuevo={NRUT} options={c.rutas.map((x: any) => [x.id, x.nombre])} />
       <Combo name="vendedor_id" label="Vendedor" nuevo={NVEN} options={c.vendedores.map((x: any) => [x.id, x.nombre])} /><Combo name="chofer" label="Chofer" nuevo={NCHO} options={c.choferes.map((x: any) => [x.nombre, x.nombre])} />
       <I n="tipo_canasta" l="Tipo de canasta" req /><I n="entregada" l="Cantidad entregada" type="number" req /><I n="recuperada" l="Cantidad recuperada" type="number" def={0} />
       <S n="estado" l="Estado" def="pendiente" o={ESTADOS_CANASTA.map(e => [e, e])} /><A n="observaciones" l="Observaciones" cls="sm:col-span-2" /><F n="fotos" l="Evidencia fotográfica" />
-      <div className="sm:col-span-3"><B>Guardar</B></div></form></Box>
+      <div className="sm:col-span-3"><B>Guardar</B></div></form></Box>}
     <Box title="Registros"><Tbl cols={['Fecha', 'Cliente', 'Ruta', 'Chofer', 'Tipo', 'Entreg.', 'Recup.', 'Pend.', 'Estado / actualizar', '']} rows={R.slice(0, 300).map(r => [r.fecha, cliTxt(r?.clientes), r.rutas?.nombre, r.chofer, r.tipo_canasta, r.entregada, r.recuperada, r.pendiente,
-      <form key="f" action={actualizar} className="flex gap-1 items-center"><input type="hidden" name="id" value={r.id} /><input type="hidden" name="entregada" value={r.entregada} />
+      !puedeEditar ? <Badge key="r">{r.estado}</Badge> : <form key="f" action={actualizar} className="flex gap-1 items-center"><input type="hidden" name="id" value={r.id} /><input type="hidden" name="entregada" value={r.entregada} />
         <input name="recuperada" type="number" defaultValue={r.recuperada} className="inp w-20" /><select name="estado" defaultValue={r.estado} className="inp w-32">{ESTADOS_CANASTA.map(e => <option key={e}>{e}</option>)}</select><B>OK</B></form>,
       admin ? <form key="d" action={borrar}><input type="hidden" name="id" value={r.id} /><button className="text-red-600 text-xs underline">Eliminar</button></form> : ''])} /></Box></div>
 }

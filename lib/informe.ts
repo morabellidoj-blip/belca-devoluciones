@@ -1,4 +1,5 @@
 import ExcelJS from 'exceljs'
+import { RESULTADOS_MERCADERIA, RESULTADOS_ECONOMICOS, RESPONSABILIDADES } from './gestion'
 import { cliTxt } from './ui'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
@@ -136,6 +137,10 @@ export async function construirXlsx(m: M, logo: Buffer | null, abiertos: any[]):
   if (filas.length) { dt.autoFilter = { from: { row: 4, column: 1 }, to: { row: 4 + filas.length, column: heads.length } }
     const t = dt.getRow(fd); t.getCell(1).value = 'TOTAL'; t.getCell(15).value = { formula: `SUBTOTAL(109,O5:O${fd - 1})`, result: m.valor }; t.getCell(15).numFmt = n0; t.getCell(14).value = ''
     for (let c = 1; c <= heads.length; c++) { t.getCell(c).font = { bold: true }; t.getCell(c).fill = fill('FFE2E8F0') } }
+  const gs=wb.addWorksheet('Gestión de devoluciones',{views:[{state:'frozen',ySplit:4}]});banda(gs,'Gestión, responsabilidad y solución',11);anchos(gs,[16,14,32,24,44,28,24,64,36,30,20])
+  tabla(gs,4,['Caso','Fecha','Cliente','Televenta','Motivo','Responsabilidad','Registrado por','Gestión y solución','Resultado mercadería','Resultado económico','Estado'],m.R.map((r:any)=>[r.numero,r.fecha,cliTxt(r.clientes),r.televentas?.nombre,motLabel(r.motivos_devolucion),RESPONSABILIDADES[r.responsabilidad_estado],r.gestor?.nombre,r.gestion_resumen || 'Pendiente de documentar',RESULTADOS_MERCADERIA[r.resultado_mercaderia],RESULTADOS_ECONOMICOS[r.resultado_economico],ESTADOS[r.estado]]))
+  gs.eachRow((row,n)=>{if(n>4){row.alignment={vertical:'top',wrapText:true};row.height=62}})
+  if(m.R.length)gs.autoFilter={from:{row:4,column:1},to:{row:4+m.R.length,column:11}}
   wb.eachSheet(ws => { ws.pageSetup = { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9 } })
   return Buffer.from(await wb.xlsx.writeBuffer())
 }
@@ -166,10 +171,11 @@ export function construirPdf(m: M, logo: Buffer | null, abiertos: any[], opts: {
     doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(...(hero ? [203, 213, 225] : GR) as [number, number, number]); doc.text(corta(c[2], 44), x + 3, yy + 19)
     if (c[3] != null) { doc.setTextColor(...(i === 0 ? [203, 213, 225] : c[3] >= 0 ? [74, 222, 128] : [248, 113, 113]) as [number, number, number]); if (hero) doc.text(dlt(c[3], i === 1 ? ' pp' : '%'), x + 3, yy + 22.5) } })
   y += 2 * (ch + 3) + 3
+  const nuevaPagina = (alto: number) => { if (y + alto > 280) { doc.addPage(); y = 16 } }
   // lectura rápida
   doc.setTextColor(...NV); doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.text('Lectura rápida', MG, y); y += 5
   doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(51, 65, 85)
-  m.insights.forEach((t: string) => { const ls = doc.splitTextToSize(plano(t), AN - 5); doc.setFillColor(...OR); doc.circle(MG + 1, y - 1, 0.7, 'F'); doc.text(ls, MG + 4, y); y += ls.length * 4 + 1.2 })
+  m.insights.forEach((t: string) => { const ls = doc.splitTextToSize(plano(t), AN - 5); nuevaPagina(ls.length*4+2); doc.setFillColor(...OR); doc.circle(MG + 1, y - 1, 0.7, 'F'); doc.text(ls, MG + 4, y); y += ls.length * 4 + 1.2 })
   y += 3
   // rankings con barras
   const rk = (titulo: string, items: { name: string; valor: number; casos?: number }[], x: number, yy: number, w: number, usaCasos = false) => {
@@ -181,7 +187,6 @@ export function construirPdf(m: M, logo: Buffer | null, abiertos: any[], opts: {
       doc.setFillColor(226, 232, 240); doc.roundedRect(x, ry + 1.3, w, 1.8, 0.9, 0.9, 'F'); doc.setFillColor(...NV); doc.roundedRect(x, ry + 1.3, Math.max(1.8, w * v / mx), 1.8, 0.9, 0.9, 'F') })
     if (!top6.length) { doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...GR); doc.text('Sin datos', x, yy + 7) }
   }
-  const nuevaPagina = (alto: number) => { if (y + alto > 280) { doc.addPage(); y = 16 } }
   if (opts.nota) { const ls = doc.splitTextToSize(opts.nota, AN - 9), h = ls.length * 4 + 11; nuevaPagina(h + 6)
     doc.setFillColor(254, 249, 231); doc.roundedRect(MG, y, AN, h, 1.5, 1.5, 'F'); doc.setFillColor(...OR); doc.rect(MG, y, 1.4, h, 'F')
     doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(...NV); doc.text('Comentarios para gerencia', MG + 5, y + 5.5)
@@ -219,6 +224,7 @@ export function construirPdf(m: M, logo: Buffer | null, abiertos: any[], opts: {
   if (rutas.length) tb('Canastas por ruta', ['Ruta', 'Entregadas', 'Recuperadas', '% Recuperación', 'Pendientes'], rutas, { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' } })
   const tipos = Object.keys(TIPOS_REC).map(t => { const x = m.rec.filter((r: any) => r.tipo === t), p = x.reduce((a: number, r: any) => a + Number(r.monto_perdida), 0), c = x.reduce((a: number, r: any) => a + Number(r.monto_recuperado), 0); return [TIPOS_REC[t], sp(p), sp(c), `${pct(c, p)}%`] }).filter(r => r[1] !== '0' || r[2] !== '0')
   if (tipos.length) tb('Recuperación económica por tipo', ['Tipo', 'Pérdida', 'Recuperado', '% Recuperación'], tipos, { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' } })
+  if(m.R.length) tb('Detalle de gestión y solución de devoluciones',['Caso / cliente','Motivo / responsabilidad','Gestión realizada','Mercadería / resultado económico'],m.R.map((r:any)=>[r.numero+' · '+cliTxt(r.clientes),motLabel(r.motivos_devolucion)+'\n'+(r.televentas?.nombre?'Televenta: '+r.televentas.nombre+'\n':'')+(RESPONSABILIDADES[r.responsabilidad_estado] || 'Por investigar'),(r.gestion_resumen || 'Pendiente de documentar')+'\nRegistrado por: '+(r.gestor?.nombre || '—'),(RESULTADOS_MERCADERIA[r.resultado_mercaderia] || 'Pendiente')+'\n'+(RESULTADOS_ECONOMICOS[r.resultado_economico] || 'Pendiente')]))
   // pie de página
   const n = doc.getNumberOfPages()
   for (let i = 1; i <= n; i++) { doc.setPage(i); doc.setDrawColor(226, 232, 240); doc.line(MG, 287, W - MG, 287); doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(...GR)

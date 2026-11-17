@@ -1,3 +1,4 @@
+import { perdidaUnica, distribuirPerdida } from './economia'
 import { all, rango, rangoTs, filtroCliente } from './data'
 import { grp, top, pct, fmt, hoy, motLabel, cliTxt } from './ui'
 import { AREAS_CORTO, areaDe } from './areas'
@@ -14,14 +15,15 @@ export async function cargar(sb: any, sp0: any) {
   const { sp, todo, H0 } = periodoEfectivo(sp0)
   let prev: any = null
   if (sp.desde && sp.hasta) { const len = Math.round((+dd(sp.hasta) - +dd(sp.desde)) / 864e5) + 1; prev = { desde: addD(sp.desde, -len), hasta: addD(sp.desde, -1) } }
-  const filt = (q: any) => { if (sp.cliente_id) q = filtroCliente(q, sp.cliente_id); for (const k of ['estado', 'gestor_id', 'area']) if (sp[k]) q = q.eq(k, sp[k]); return q }
-  const conCli = sp.cliente_id && sp.cliente_id !== 'ninguno'
+  const campos = ['estado','gestor_id','area','vendedor_id','televenta_id','chofer','motivo_id','responsabilidad_estado','resultado_mercaderia','resultado_economico']
+  const filt = (q: any, pref = '') => { if (sp.cliente_id) q = filtroCliente(q, sp.cliente_id, pref); for (const k of campos) if (sp[k]) q = q.eq(pref+k, sp[k]); if (sp.error && ['error_cliente','error_ventas','error_televentas','error_chofer','error_almacen','error_pima'].includes(sp.error)) q=q.eq(pref+sp.error,true); return q }
+  const conCli = !!sp.cliente_id
   const [c, pc, rec, prec, can, viejos, cfg] = await Promise.all([
-    all(filt(rango(sb.from('casos').select('id,numero,fecha,estado,monto,cantidad,producto,factura,chofer,critico,area,cliente_id,vendedor_id,error_cliente,error_ventas,error_televentas,error_chofer,error_almacen,error_pima,created_at,fecha_cierre,televenta_id,clientes(codigo,nombre),vendedores(nombre),televentas(nombre),rutas(nombre),motivos_devolucion(codigo,nombre,area)'), 'fecha', sp))),
+    all(filt(rango(sb.from('casos').select('id,numero,fecha,estado,monto,cantidad,producto,factura,chofer,critico,area,gestor_id,ruta_id,motivo_id,gestion_resumen,observaciones,resultado_mercaderia,resultado_economico,responsabilidad_estado,cliente_id,vendedor_id,error_cliente,error_ventas,error_televentas,error_chofer,error_almacen,error_pima,created_at,fecha_cierre,televenta_id,clientes(codigo,nombre),vendedores(nombre),televentas(nombre),rutas(nombre),gestor:profiles!casos_gestor_id_fkey(nombre),motivos_devolucion(codigo,nombre,area)'), 'fecha', sp))),
     prev ? all(filt(rango(sb.from('casos').select('estado,monto'), 'fecha', prev))) : Promise.resolve({ data: null }),
-    all(rangoTs(sb.from('recuperaciones').select('monto_perdida,monto_recuperado,created_at,tipo,clientes(codigo,nombre),casos(numero)'), 'created_at', sp)),
-    prev ? all(rangoTs(sb.from('recuperaciones').select('monto_recuperado'), 'created_at', prev)) : Promise.resolve({ data: null }),
-    all((conCli ? (q: any) => q.eq('cliente_id', sp.cliente_id) : (q: any) => q)(rango(sb.from('canastas').select('fecha,chofer,entregada,recuperada,pendiente,estado,clientes(codigo,nombre),rutas(nombre)'), 'fecha', sp))),
+    all(filt(rangoTs(sb.from('recuperaciones').select('id,caso_id,monto_perdida,monto_recuperado,created_at,tipo,clientes(codigo,nombre),casos!inner(numero)'), 'created_at', sp),'casos.')),
+    prev ? all(filt(rangoTs(sb.from('recuperaciones').select('monto_recuperado,casos!inner(id)'), 'created_at', prev),'casos.')) : Promise.resolve({ data: null }),
+    all((conCli ? (q: any) => filtroCliente(q,sp.cliente_id) : (q: any) => q)(rango(sb.from('canastas').select('fecha,chofer,entregada,recuperada,pendiente,estado,clientes(codigo,nombre),rutas(nombre)'), 'fecha', sp))),
     sb.from('casos').select('id,numero,created_at,estado,clientes(codigo,nombre),motivos_devolucion(codigo,nombre)').not('estado', 'in', '(resuelto,cerrado)').order('created_at').limit(8),
     sb.from('config').select('valor').eq('clave', 'meta_efectividad').maybeSingle()])
   return { errorCasos: c.error?.message || null, meta: Number(cfg?.data?.valor) || 80, sp, todo, H0, prev, R: c.data || [], P: pc.data || [], rec: rec.data || [], prec: prec.data || [], K: can.data || [], viejos: viejos.data || [] }
@@ -33,14 +35,15 @@ export function resumen(rows: any[], key: (r: any) => any) {
 }
 export function calcular(d: any) {
   const META = Number(d.meta) || 80
-  const { R, P, K, rec, prec, viejos, todo, sp, H0 } = d
+  const { R, P, K, prec, viejos, todo, sp, H0 } = d
+  const rec = distribuirPerdida(d.rec)
   const total = R.length, cerr = R.filter((r: any) => r.estado === 'cerrado').length
   const abiertos = R.filter((r: any) => !['resuelto', 'cerrado'].includes(r.estado)).length
   const pend = R.filter((r: any) => r.estado.startsWith('pendiente')).length
   const gestionadas = R.filter((r: any) => ['resuelto', 'cerrado'].includes(r.estado)).length
   const conCierre = R.filter((r: any) => r.fecha_cierre)
   const hrs: number | null = conCierre.length ? conCierre.reduce((a: number, r: any) => a + (+new Date(r.fecha_cierre) - +new Date(r.created_at)) / 36e5, 0) / conCierre.length : null
-  const valor = sum(R, 'monto'), pValor = sum(P, 'monto'), recup = sum(rec, 'monto_recuperado'), perd = sum(rec, 'monto_perdida'), pRecup = sum(prec, 'monto_recuperado')
+  const valor = sum(R, 'monto'), pValor = sum(P, 'monto'), recup = sum(rec, 'monto_recuperado'), perd = perdidaUnica(rec), pRecup = sum(prec, 'monto_recuperado')
   const efect = pct(cerr, total), pTotal = P.length, pEfect = pct(P.filter((r: any) => r.estado === 'cerrado').length, pTotal)
   const kEnt = sum(K, 'entregada'), kRec = sum(K, 'recuperada')
   const kPend = K.filter((r: any) => ['pendiente', 'parcial'].includes(r.estado)).reduce((a: number, r: any) => a + r.pendiente, 0)
@@ -79,10 +82,11 @@ export function calcular(d: any) {
   const actor = (kf: (r: any) => any, flag: string) => { const mp = new Map<string, { name: string; casos: number; errores: number; valor: number; valorErr: number }>()
     R.forEach((r: any) => { const n = kf(r); if (!n) return; const x = mp.get(n) || { name: n, casos: 0, errores: 0, valor: 0, valorErr: 0 }; x.casos++; x.valor += Number(r.monto || 0); if (r[flag]) { x.errores++; x.valorErr += Number(r.monto || 0) }; mp.set(n, x) })
     return Array.from(mp.values()).map(x => ({ ...x, pctErr: pct(x.errores, x.casos) })) }
+  const identificar = (items:any[], key:string, rel:string) => items.map(x=>({...x,id:R.find((r:any)=>(rel==='clientes'?cliTxt(r[rel]):r[rel]?.nombre)===x.name)?.[key]}))
   const actores = {
-    vend: actor((r: any) => r.vendedores?.nombre, 'error_ventas'), tele: actor((r: any) => r.televentas?.nombre, 'error_televentas'),
+    vend: identificar(actor((r: any) => r.vendedores?.nombre, 'error_ventas'),'vendedor_id','vendedores'), tele: identificar(actor((r: any) => r.televentas?.nombre, 'error_televentas'),'televenta_id','televentas'),
     cho: actor((r: any) => String(r.chofer || '').trim(), 'error_chofer').map(x => ({ ...x, ent: kch.get(x.name)?.ent || 0, pctRec: pct(kch.get(x.name)?.rec || 0, kch.get(x.name)?.ent || 0) })),
-    cli: actor((r: any) => (r.cliente_id ? cliTxt(r.clientes) : null), 'error_cliente') }
+    cli: identificar(actor((r: any) => (r.cliente_id ? cliTxt(r.clientes) : null), 'error_cliente'),'cliente_id','clientes') }
   const FL = ['error_cliente', 'error_ventas', 'error_televentas', 'error_chofer', 'error_almacen', 'error_pima']
   const errTot = { cliente: R.filter((r: any) => r.error_cliente).length, ventas: R.filter((r: any) => r.error_ventas).length, televentas: R.filter((r: any) => r.error_televentas).length, chofer: R.filter((r: any) => r.error_chofer).length, almacen: R.filter((r: any) => r.error_almacen).length, pima: R.filter((r: any) => r.error_pima).length }
   const valErr = { almacen: sum(R.filter((r: any) => r.error_almacen), 'monto'), pima: sum(R.filter((r: any) => r.error_pima), 'monto') }
@@ -114,7 +118,7 @@ export function calcular(d: any) {
     const vol = [['vendedor', mx(actores.vend, 'casos')], ['televenta', mx(actores.tele, 'casos')], ['chofer', mx(actores.cho, 'casos')], ['cliente', mx(actores.cli, 'casos')]].filter(x => x[1]) as [string, any][]
     if (vol.length) insights.push(`Quién envía más casos: ${vol.map(([t, a]) => `${t} **${a.name}** (${a.casos})`).join(', ')}.`)
     const er = [['vendedor', mx(actores.vend, 'errores')], ['televenta', mx(actores.tele, 'errores')], ['chofer', mx(actores.cho, 'errores')], ['cliente', mx(actores.cli, 'errores')]].filter(x => x[1] && x[1].errores > 0) as [string, any][]
-    if (er.length) insights.push(`Quién se equivoca más (errores marcados): ${er.map(([t, a]) => `${t} **${a.name}** (${a.errores} de ${a.casos})`).join(', ')}.`)
+    if (er.length) insights.push(`Mayor cantidad de errores atribuidos: ${er.map(([t, a]) => `${t} **${a.name}** (${a.errores} de ${a.casos})`).join(', ')}.`)
     const chTop = choferesDet[0]; if (chTop) insights.push(`El chofer que más reporta es **${chTop.name}** (${chTop.reportes} reportes): ${chTop.propio} por error suyo, ${chTop.porVend} por vendedor, ${chTop.porCli} por cliente y ${chTop.porTele} por televentas.`)
     const cp = [...choferesDet].sort((a, b) => b.propio - a.propio || b.pctPropio - a.pctPropio)[0]; if (cp && cp.propio > 0) insights.push(`El chofer con más incidencias propias es **${cp.name}**: ${cp.propio} de sus ${cp.reportes} reportes (${cp.pctPropio}%) fueron error suyo.`)
     const nErr = cls.filter(c => c.length > 0).length
@@ -127,6 +131,6 @@ export function calcular(d: any) {
     if (perd) insights.push(`De lo registrado como pérdida se ha recuperado el **${pct(recup, perd)}%** (${fmt(recup)} de ${fmt(perd)}).`)
   }
   if (kEnt) insights.push(`Canastas: se ha recuperado el **${pct(kRec, kEnt)}%** de las entregadas y quedan **${fmt(kPend)}** pendientes.`)
-  return { ...d, H0, total, cerr, abiertos, pend, gestionadas, hrs, valor, pValor, recup, perd, pRecup, efect, pTotal, pEfect, kEnt, kRec, kPend, kPerd, cierre, gM, gC, gV, gT, periodo, dV, diasViejo, insights, porArea, vResp, tResp, cFrec, reincidentes, pareto, k80, porInvestigar, imputables, meta: META, choferesDet, actores, errTot, valErr, sinAtribuir, distrib, valEvit, valCliente, proyMensual, topEvit }
+  return { ...d, rec, H0, total, cerr, abiertos, pend, gestionadas, hrs, valor, pValor, recup, perd, pRecup, efect, pTotal, pEfect, kEnt, kRec, kPend, kPerd, cierre, gM, gC, gV, gT, periodo, dV, diasViejo, insights, porArea, vResp, tResp, cFrec, reincidentes, pareto, k80, porInvestigar, imputables, meta: META, choferesDet, actores, errTot, valErr, sinAtribuir, distrib, valEvit, valCliente, proyMensual, topEvit }
 }
 export type M = ReturnType<typeof calcular>

@@ -8,7 +8,7 @@ export async function middleware(req: NextRequest) {
         res = NextResponse.next({ request: req }); c.forEach(({ name, value, options }) => res.cookies.set(name, value, options)) } } })
   const { data: { user } } = await sb.auth.getUser()
   if (!user && !req.nextUrl.pathname.startsWith('/login')) return NextResponse.redirect(new URL('/login', req.url))
-  if (user && req.nextUrl.pathname.startsWith('/login')) return NextResponse.redirect(new URL('/dashboard', req.url))
+  if (user && req.nextUrl.pathname.startsWith('/login') && !req.nextUrl.searchParams.has('inactivo')) return NextResponse.redirect(new URL('/informe', req.url))
   return res
 }
 export const config = { matcher: ['/((?!_next|.*\\..*).*)'] }
