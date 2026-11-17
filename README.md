@@ -1,6 +1,6 @@
 # Versión ampliada: gestión profesional de devoluciones
 
-Para actualizar una instalación existente, abra primero **ACTUALIZACION_GESTION.md**. Incluye los pasos para instalar 013 y 014, los usuarios de consulta y el nuevo informe. No ejecute el esquema inicial sobre una base existente.
+Para actualizar una instalación existente, abra primero **ACTUALIZACION_GESTION.md**. Incluye los pasos para instalar 013, 014 y 015 en ese orden, los usuarios de consulta y el nuevo informe. No ejecute el esquema inicial sobre una base existente.
 
 # Belca · Devoluciones, Canastas y Recuperación — Guía desde cero
 

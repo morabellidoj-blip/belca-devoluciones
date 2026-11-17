@@ -1,12 +1,18 @@
 # Actualización: control profesional de devoluciones
 
+## Corrección: registro sencillo y gestión opcional
+
+Si ya instaló la versión anterior (013 y 014), ejecute únicamente **`supabase/migrations/015_gestion_opcional.sql`** en Supabase → SQL Editor y actualice el código con este paquete. No vuelva a ejecutar 014 después de 015.
+
+El formulario Nuevo caso conserva todos los campos anteriores, sin agregar requisitos de gestión ni resultados. El cierre rápido, individual o masivo vuelve a funcionar sin esos campos. Puede completar la gestión y los resultados más adelante, incluso después del cierre. No se borra información ni se marcan resultados pendientes como si estuvieran resueltos.
+
 Esta versión amplía la app existente. No se ha conectado a la base real ni se han creado usuarios reales desde este archivo.
 
 ## Cómo instalar en la app actual
 
 1. Conserve una copia de su código actual y un respaldo de Supabase. Pruebe la actualización en su proyecto de pruebas si ya lo tiene.
 2. En el SQL Editor del mismo proyecto Supabase que usa esta app, ejecute **solamente `supabase/migrations/013_rol_consulta.sql`** y espere la confirmación.
-3. En una **ejecución separada**, ejecute `supabase/migrations/014_gestion_profesional.sql`. No vuelva a ejecutar 001–012 en una base existente. La 014 es repetible y conserva los registros previos.
+3. En una **ejecución separada**, ejecute `supabase/migrations/014_gestion_profesional.sql`. No vuelva a ejecutar 001–012 en una base existente. Después ejecute `supabase/migrations/015_gestion_opcional.sql` para dejar la gestión y los resultados opcionales.
 4. Actualice el código de su repositorio con el contenido de esta carpeta. Mantenga las variables de entorno de su proyecto; no hay claves en este paquete. Vercel debe usar el archivo `package-lock.json` incluido.
 5. Entre con su administrador. Abra **Informe de devoluciones** y después **Administración → Usuarios** para crear los accesos necesarios.
 
@@ -30,7 +36,7 @@ Los accesos creados desde Administración se activan al asignar el rol. Los crea
 2. **Investigar:** indicar área y errores atribuidos. La responsabilidad inicia como Por investigar; se puede marcar preliminar, confirmada o no aplica. No confundir asociación a un caso con error confirmado.
 3. **Gestionar:** abrir el caso → Registrar mi gestión. Elegir qué hizo, con quién habló, describir la gestión, respuesta, pendiente y fecha de compromiso. El sistema registra el usuario y la fecha de Costa Rica.
 4. **Resolver:** completar Mi gestión y solución final; indicar si el cliente conservó la mercadería, hubo devolución total/parcial, reprogramación, recepción en almacén u otra solución documentada. Definir también el resultado económico.
-5. **Cerrar:** seleccionar Cerrado y guardar. Los cierres nuevos requieren un resumen y ambos resultados definidos. Si falta algo, el caso sigue abierto.
+5. **Cerrar:** seleccionar Cerrado y guardar. La gestión y los resultados son opcionales y pueden completarse más adelante. Se conserva quién cerró y cuándo.
 6. **Revisar:** el informe permite filtrar por motivo, televenta, vendedor, cliente, chofer, área, usuario que registró, estado y resultados. Los rankings permiten abrir los casos asociados o solo aquellos con error atribuido.
 7. **Abrir y volver:** toque el número del caso. Use Volver al informe / listado para recuperar filtros y página. Los enlaces desde el dashboard y el informe semanal también conservan el punto de regreso.
 
@@ -41,7 +47,7 @@ Los accesos creados desde Administración se activan al asignar el rol. Los crea
 - Gestión: “Contacté a televentas y al cliente; confirmé la duplicación y coordiné el retorno con transporte”.
 - Respuesta: “El cliente acepta conservar únicamente el pedido correcto”.
 - Pendiente: “Confirmar ingreso a almacén y trámite de nota de crédito”.
-- Mantener abierto mientras esos pasos sigan pendientes. Al concluir, documentar la solución y el resultado económico antes de cerrar.
+- Mantener abierto mientras esos pasos sigan pendientes. Se puede cerrar cuando corresponda y completar la solución y el resultado económico después.
 
 ## Informes y montos
 
@@ -56,8 +62,8 @@ Los accesos creados desde Administración se activan al asignar el rol. Los crea
 ## Validación realizada
 
 - Compilación de producción de Next.js y revisión de TypeScript.
-- Pruebas de regreso con filtros, validación de cierre y cálculo de pérdidas con varios abonos.
-- Migraciones ejecutadas en PostgreSQL aislado con tablas de autenticación y almacenamiento simuladas: consulta de solo lectura, bloqueo de escrituras, bitácora, autor real, cierre válido/inválido, reapertura y usuario inactivo.
+- Pruebas de regreso con filtros, cálculo de pérdidas con varios abonos.
+- Migraciones ejecutadas en PostgreSQL aislado con tablas de autenticación y almacenamiento simuladas: consulta de solo lectura, bloqueo de escrituras, bitácora, autor real, cierre rápido y masivo sin requisitos nuevos, edición posterior, reapertura y usuario inactivo.
 - Falta la prueba integrada en su Supabase real: inicio de sesión con los tres roles, navegación del informe, carga de fotos, avisos y descargas con datos reales. No se verificaron Teams ni tareas programadas reales.
 
 Para ejecutar las pruebas de lógica, exportaciones y base de datos aislada: `npm ci` y `npm test`. Para compilar: configure las variables de Supabase y ejecute `npm run build`.

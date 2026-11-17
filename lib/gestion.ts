@@ -8,10 +8,3 @@ export function retornoSeguro(value: unknown, fallback = '/informe') {
  if (typeof value !== 'string' || !/^\/(informe|dashboard|semanal|casos)(?:[?#]|$)/.test(value) || /[\\\r\n]/.test(value)) return fallback
  return value
 }
-export function errorCierre(c: { estado: string; gestion_resumen?: string | null; resultado_mercaderia?: string | null; resultado_economico?: string | null }) {
- if (c.estado !== 'cerrado') return null
- if (!c.gestion_resumen?.trim()) return 'Para cerrar, describa la gestión realizada y la solución.'
- if (!c.resultado_mercaderia || c.resultado_mercaderia === 'pendiente') return 'Para cerrar, indique qué ocurrió con la mercadería.'
- if (!c.resultado_economico || c.resultado_economico === 'pendiente') return 'Para cerrar, indique el resultado económico.'
- return null
-}

@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { escritura, ctx, cat, g, num, subir, urls } from '@/lib/data'
 import { Combo } from '@/lib/combo'
 import { AREAS, AREA_OPC, areaDe } from '@/lib/areas'
-import { RESULTADOS_MERCADERIA, RESULTADOS_ECONOMICOS, RESPONSABILIDADES, ACCIONES, retornoSeguro, errorCierre } from '@/lib/gestion'
+import { RESULTADOS_MERCADERIA, RESULTADOS_ECONOMICOS, RESPONSABILIDADES, ACCIONES, retornoSeguro } from '@/lib/gestion'
 import { ConfirmButton } from '@/lib/cerrar'
 import { Errores, T, Box, Grid, I, S, A, F, B, Tbl, Badge, ESTADOS, TIPOS_REC, fmt, cliLabel, horaCR, motLabel } from '@/lib/ui'
 export const dynamic = 'force-dynamic'
@@ -14,8 +14,6 @@ async function actualizar(fd: FormData) {
  'use server'
  const { sb } = await escritura(); const id = g(fd,'id')!
  const upd = { fecha:g(fd,'fecha'), cliente_id:g(fd,'cliente_id'), vendedor_id:g(fd,'vendedor_id'), televenta_id:g(fd,'televenta_id'), ruta_id:g(fd,'ruta_id'), chofer:g(fd,'chofer'), factura:g(fd,'factura'), producto:g(fd,'producto'), cantidad:num(fd,'cantidad'), monto:num(fd,'monto'), motivo_id:g(fd,'motivo_id'), estado:g(fd,'estado') || 'nuevo', area:g(fd,'area') || 'investigar', responsabilidad_estado:g(fd,'responsabilidad_estado'), gestion_resumen:g(fd,'gestion_resumen'), resultado_mercaderia:g(fd,'resultado_mercaderia'), resultado_economico:g(fd,'resultado_economico'), observaciones:g(fd,'observaciones'), critico:fd.has('critico'), ...Object.fromEntries(['error_cliente','error_ventas','error_televentas','error_chofer','error_almacen','error_pima'].map(k=>[k,fd.has(k)])) }
- const validacion = errorCierre(upd)
- if (validacion) redirect(destino(fd,validacion))
  if (upd.monto < 0 || upd.cantidad < 0) redirect(destino(fd,'El monto y la cantidad deben ser mayores o iguales a cero.'))
  const {error} = await sb.from('casos').update(upd).eq('id',id)
  revalidatePath('/','layout'); redirect(destino(fd,error?.message))
@@ -85,12 +83,12 @@ export default async function Caso({params,searchParams}:{params:Promise<{id:str
     <S n="responsabilidad_estado" l="Validación de la responsabilidad" def={c.responsabilidad_estado} o={Object.entries(RESPONSABILIDADES)} req/>
     <S n="estado" l="Estado del caso" def={c.estado} o={Object.entries(ESTADOS)} req/>
     <fieldset className="sm:col-span-2 rounded-lg border p-3"><legend className="text-sm font-semibold">Error atribuido (puede seleccionar varios)</legend><div className="flex flex-wrap gap-3">{[['error_cliente','Cliente'],['error_ventas','Ventas'],['error_televentas','Televentas'],['error_chofer','Chofer'],['error_almacen','Almacén'],['error_pima','PIMA']].map(([n,l])=><label key={n} className="flex gap-2 text-sm"><input name={n} type="checkbox" defaultChecked={c[n]}/>{l}</label>)}</div></fieldset>
-    <A n="gestion_resumen" l="Mi gestión y solución final" def={c.gestion_resumen} cls="sm:col-span-2"/>
-    <S n="resultado_mercaderia" l="Qué ocurrió con la mercadería" def={c.resultado_mercaderia} o={Object.entries(RESULTADOS_MERCADERIA)} req/>
-    <S n="resultado_economico" l="Resultado económico" def={c.resultado_economico} o={Object.entries(RESULTADOS_ECONOMICOS)} req/>
+    <A n="gestion_resumen" l="Mi gestión y solución final (opcional)" def={c.gestion_resumen} cls="sm:col-span-2"/>
+    <S n="resultado_mercaderia" l="Qué ocurrió con la mercadería (opcional)" def={c.resultado_mercaderia} o={Object.entries(RESULTADOS_MERCADERIA)} req/>
+    <S n="resultado_economico" l="Resultado económico (opcional)" def={c.resultado_economico} o={Object.entries(RESULTADOS_ECONOMICOS)} req/>
     <A n="observaciones" l="Observaciones adicionales" def={c.observaciones} cls="sm:col-span-2"/>
     <label className="flex gap-2 text-sm"><input name="critico" type="checkbox" defaultChecked={c.critico}/>Incidencia crítica</label>
-    <p className="sm:col-span-2 text-xs text-slate-500">Para cerrar, complete la gestión y ambos resultados. Las correcciones quedan en el historial con su usuario.</p><div className="sm:col-span-2"><B>Guardar cambios</B></div>
+    <p className="sm:col-span-2 text-xs text-slate-500">La gestión y los resultados son opcionales: puede completarlos o editarlos después, incluso con el caso cerrado. Las correcciones quedan en el historial con su usuario.</p><div className="sm:col-span-2"><B>Guardar cambios</B></div>
    </form></Box>
    <Box title="Registrar mi gestión"><form action={seguimiento} className="grid gap-3">{ocultos}
     <S n="accion" l="Qué hice" o={Object.entries(ACCIONES)} req/><I n="contacto" l="Con quién hablé / área contactada"/>
